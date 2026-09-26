@@ -1,0 +1,65 @@
+"""Single source of truth for terms, metrics and labels used in reports.
+
+`python -m starbirth.glossary` regenerates docs/GLOSSARY.md; report writers
+call `markdown()` and append it.
+"""
+from __future__ import annotations
+
+from pathlib import Path
+
+GLOSSARY: dict[str, str] = {
+    # physics
+    "FHSC": "First hydrostatic core: ~AU-scale, ~1000 K pressure-supported gas core that precedes H2 dissociation; lives ~10^2-10^3 yr.",
+    "second core / birth": "Second hydrostatic core, formed after H2 dissociation triggers a second collapse; conventionally the birth of the protostar.",
+    "Class 0": "Youngest protostellar class: envelope mass > stellar mass, SED peaking in the far-IR/sub-mm (T_bol < 70 K).",
+    "T_bol": "Bolometric temperature: temperature of a blackbody with the same mean frequency as the SED.",
+    "L_int": "Internal luminosity of the central source only, excluding external heating.",
+    "VeLLO": "Very low luminosity object: embedded protostar with L_int <= 0.1 L_sun (Dunham+2008).",
+    "PBRS": "PACS Bright Red Source: Orion protostar with log(lambda F_lambda(70)/lambda F_lambda(24)) > 1.65 (Stutz+2013).",
+    "FUor / EXor": "Long (decades) / short (months) accretion outbursts, named after FU Ori / EX Lup.",
+    "half-life": "Kristensen & Dunham 2018's statistically inferred phase duration.",
+    "statistical lifetime": "t_X = (N_X / N_ref) * t_ref; assumes steady state and that every X evolves into the reference class.",
+    "accretion burst": "Episodic luminosity increase of an already-existing protostar (FUor/EXor-like); the main astrophysical false positive.",
+    # data
+    "Hi-GAL": "Herschel infrared Galactic Plane Survey (70-500 um, observed 2009-2013). Clump catalogue: Elia et al. 2021, IRSA table `higal360clump` (94,604 high-reliability rows).",
+    "prestellar (evol_flag=1)": "Hi-GAL clump that is gravitationally bound and has no 70 um counterpart (49,289 clumps).",
+    "protostellar (evol_flag=2)": "Hi-GAL clump with a 70 um counterpart (35,186 clumps).",
+    "high-reliability": "Hi-GAL SED fitted with >=4 Herschel bands and T not at the 5/40 K grid edge (Elia+2021 Sec. 2); the IRSA table holds only these.",
+    "unbound starless (evol_flag=0)": "Hi-GAL starless clump below the Larson-mass threshold (10,129 clumps).",
+    "W1 / W2": "WISE bands at 3.4 / 4.6 um; magnitudes are Vega (`w1mpro`, `w2mpro`).",
+    "AllWISE": "WISE+NEOWISE-cryo coadded catalogue (epochs 2010-2011), IRSA `allwise_p3as_psd`; used as the ~Herschel-epoch baseline.",
+    "NEOWISE": "Reactivated WISE W1/W2 survey 2013-12 to 2024-08, ~1-day visits every ~6 months; single exposures in IRSA `neowiser_p1bs_psd`.",
+    # method / experiments
+    "E-1": "Feasibility experiment: expected number of observable turn-ons before building the pipeline.",
+    "E0": "Synthetic change-point calibration on WISE-like cadence (docs/EXPERIMENTS.md).",
+    "W2 match": "An AllWISE source with w2snr >= 5 within 3 arcsec of the clump position (nearest kept).",
+    "offset control": "Same targets shifted +60 arcsec in Dec; its W2 match rate f_off is the chance-alignment baseline.",
+    "f_on / f_off": "Fraction of clumps with a W2 match at the clump position / at the offset position.",
+    "df_W2": "Detectability of the post-birth state = f_on - f_off for the youngest-quartile (lowest L_bol/M) protostellar clumps.",
+    "f_prehost": "f_on - f_off for prestellar clumps: fraction already hosting a W2 source at the Herschel epoch (vetoed).",
+    "L/M": "Clump bolometric luminosity over mass (L_sun/M_sun); low L/M = earlier evolutionary stage.",
+    "tau_pre / tau_proto": "Lifetimes (Myr) of the Hi-GAL prestellar / protostellar clump phases. Steady state: N_pre/tau_pre = N_proto/tau_proto.",
+    "dt": "Search window: 12 yr (Hi-GAL epoch 2010-2012 to NEOWISE end 2024-08, minus 2 epochs needed to confirm persistence).",
+    "N_T": "Expected prestellar->protostellar transitions in the window: N_T = N_proto * dt / tau_proto.",
+    "Y": "Expected observable W2 turn-ons: Y = N_T * df_W2 * (1 - f_prehost).",
+    "B": "Expected accretion-burst background from protostars hidden in prestellar clumps: B = N_pre * f_hidden * dt / burst_interval.",
+    # metrics
+    "sigma per exposure": "Injected step amplitude in units of the per-exposure Gaussian noise sigma (synthetic E0 only).",
+    "delta_BIC": "BIC(constant) - BIC(step); BIC = chi^2 + k ln n with k=1 (constant) or 3 (two levels + change index). Detection if >= 20 and step > 0.",
+    "detection rate": "Fraction of simulated curves with delta_BIC >= threshold and positive step.",
+    "localization rate": "Fraction of simulated curves detected AND with change index within +/-1 epoch (12 exposures) of truth.",
+    "SNR": "Signal-to-noise ratio; SNR = 5 is a 5-sigma detection (`w2snr`).",
+    "binomial SE": "Standard error of a fraction p over n trials: sqrt(p(1-p)/n).",
+}
+
+
+def markdown() -> str:
+    lines = ["## Glossary", "", "| term | definition |", "|---|---|"]
+    lines += [f"| {k} | {v} |" for k, v in GLOSSARY.items()]
+    return "\n".join(lines) + "\n"
+
+
+if __name__ == "__main__":
+    out = Path(__file__).resolve().parents[2] / "docs" / "GLOSSARY.md"
+    out.write_text("# Glossary\n\n" + markdown().split("\n", 2)[2])
+    print(f"wrote {out}")

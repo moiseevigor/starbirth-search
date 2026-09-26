@@ -39,14 +39,27 @@ python -m starbirth.experiments.synthetic_turnon --trials 5000 --seed 42
 
 ## Environment
 
-Python 3.11+.
+Python 3.11+ (native arm64 on Apple Silicon — the system `python3` may be an old x86 build).
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -e '.[dev]'
-pytest
+uv venv -p 3.12 .venv
+uv pip install -p .venv -e '.[dev,research]'
+.venv/bin/python -m pytest
 ```
+
+## Layout
+
+- `src/starbirth/` — library code; `glossary.py` is the single source of term definitions (-> `docs/GLOSSARY.md`)
+- `research/` — experiment drivers (E-1, E1-pilot) and report writers
+- `scripts/` — entry points / benchmarks · `tests/` — tests · `configs/` — run configs
+- `docs/` — reports (`FEASIBILITY.md`, `LITERATURE.md`, …) with figures in `docs/figures/`
+- `artifacts/` — machine outputs (CSV tables); `cache/` — gitignored downloads (Hi-GAL catalogue)
+
+## Current status
+
+See `docs/FEASIBILITY.md`: turn-ons are expected at the ~0.1–1 level in the whole
+sample, but accretion bursts of hidden protostars outnumber them (S/B < 1), so
+birth-vs-burst discrimination is the core problem.
 
 The catalog phase is CPU/I/O-oriented. Later image experiments can use PyTorch MPS on Apple Silicon or CUDA on NVIDIA GPUs.
 

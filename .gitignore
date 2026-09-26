@@ -10,3 +10,6 @@ outputs/
 *.fits
 *.fits.gz
 *.parquet
+cache/
+artifacts/**/neowise_rows_*.csv
+*.egg-info/

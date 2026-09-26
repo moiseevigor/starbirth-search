@@ -20,18 +20,35 @@ import numpy as np
 import pandas as pd
 from astropy.table import Table
 
-from starbirth.features.turn_on import classify, track
+from starbirth.features.turn_on import classify
 
 ROOT = Path(__file__).resolve().parents[1]
 TAP = "https://irsa.ipac.caltech.edu/TAP/sync"
 
 
-def neowise_rows(ra: np.ndarray, dec: np.ndarray, radius_arcsec: float, chunk: int = 200) -> pd.DataFrame:
-    """Chunked: IRSA sync TAP times out (~5 min) on ~2000-target uploads."""
+def neowise_rows(ra: np.ndarray, dec: np.ndarray, radius_arcsec: float, chunk: int = 200,
+                 cache_dir: Path | None = None, retries: int = 3) -> pd.DataFrame:
+    """Chunked (IRSA sync TAP times out ~5 min on ~2000-target uploads); each chunk
+    is cached to cache_dir so a long run resumes after a crash or transient fault."""
     parts = []
     for i in range(0, len(ra), chunk):
-        r = _neowise_chunk(ra[i:i + chunk], dec[i:i + chunk], radius_arcsec)
-        parts.append(r.assign(tid=r.tid + i))
+        f = cache_dir / f"chunk_{i:06d}.csv" if cache_dir else None
+        if f is not None and f.exists():
+            parts.append(pd.read_csv(f))
+            continue
+        for attempt in range(retries):
+            try:
+                r = _neowise_chunk(ra[i:i + chunk], dec[i:i + chunk], radius_arcsec)
+                break
+            except (RuntimeError, httpx.HTTPError) as e:
+                if attempt == retries - 1:
+                    raise
+                print(f"chunk {i}: retry {attempt + 1} after {type(e).__name__}", flush=True)
+        r = r.assign(tid=r.tid + i)
+        if f is not None:
+            f.parent.mkdir(parents=True, exist_ok=True)
+            r.to_csv(f, index=False)
+        parts.append(r)
     return pd.concat(parts, ignore_index=True)
 
 
@@ -75,9 +92,10 @@ def main() -> None:
 
     res = {}
     for label, dec_shift in (("on", 0.0), ("off", 60.0)):
-        rows = neowise_rows(s.ra.values, s.dec.values + dec_shift / 3600, a.radius)
+        rows = neowise_rows(s.ra.values, s.dec.values + dec_shift / 3600, a.radius,
+                            cache_dir=ROOT / "cache" / a.out / label)
         rows.to_csv(out / f"neowise_rows_{label}.csv", index=False)
-        c = classify(track(rows), len(s))
+        c = classify(rows, len(s))
         res[label] = c
         print(f"{label}: rows={len(rows)}", c.value_counts().to_dict())
     s["class_on"], s["class_off"] = res["on"].values, res["off"].values

@@ -283,6 +283,24 @@ def phases() -> list[dict]:
                         f"{j['g337_host']['percentile_in_field_classII']:.0f}th percentile of field Class II. SPICY "
                         f"classes are unreliable inside clumps; only the all-class E4 rate stands.")
         e5["data"] = j
+    f6 = A / "e6" / "colour_colour.json"
+    e6 = next(p for p in ph if p["id"] == "E6")
+    if f6.exists():
+        j = json.loads(f6.read_text())
+        g = j["groups"]
+        pre, pro = g["prestellar clumps"], g["protostellar clumps"]
+        ci = lambda v: f"{v[0]:+.2f} to {v[1]:+.2f}"  # noqa: E731
+        e6["result"] = (f"Prestellar-clump hosts vs field: delta [3.6]-[4.5] = {pre['d_c1']:+.2f} ({ci(pre['d_c1_ci95'])}), "
+                        f"delta [4.5]-[5.8] = {pre['d_c2']:+.2f} ({ci(pre['d_c2_ci95'])}), delta [4.5]-[8.0] = "
+                        f"{pre['d_c3']:+.2f}; implied A_K ~ {pre['A_K_implied']:.1f}. Protostellar-clump hosts: "
+                        f"{pro['d_c1']:+.2f} / {pro['d_c2']:+.2f} / {pro['d_c3']:+.2f} (A_K ~ {pro['A_K_implied']:.1f}). "
+                        f"The [3.6]-[4.5] shift is ~3x the [4.5]-[5.8] shift and [4.5]-[8.0] barely moves: the "
+                        f"reddening is mostly extinction. The pre-registered cut (|delta [4.5]-[5.8]| < 0.1) is "
+                        f"narrowly missed ({pre['d_c2']:+.2f}), leaving a small residual that a dense-cloud extinction "
+                        f"law or a modest envelope excess could explain. {100 * pre['frac_gutermuth_classI']:.0f}% of "
+                        f"these 'Class II' hosts pass the full Gutermuth Class I colour cut vs "
+                        f"{100 * g['field (|b| < 1 deg)']['frac_gutermuth_classI']:.0f}% in the field.")
+        e6["data"] = j
     return ph
 
 

@@ -345,6 +345,20 @@ const FIG = {
       Plotly.react(el.querySelector(".c2"), [{ type: "bar", x: G.map(([k, g]) => `${k.replace(" (", "<br>(").replace(" clumps", "<br>clumps")}<br>n=${g.n_classII}`), y: G.map(([, g]) => g.frac_red), marker: { color: G.map((_, i) => css(cols[i])) },
         error_y: { type: "data", symmetric: false, array: G.map(([, g]) => g.frac_red_ci95[1] - g.frac_red), arrayminus: G.map(([, g]) => g.frac_red - g.frac_red_ci95[0]), color: css("--ink") },
         hovertemplate: "%{x}: %{y:.2f}<extra></extra>" }], base({ yaxis: { ...base().yaxis, title: { text: "fraction with [3.6]−[4.5] > 0.7" }, range: [0, 1] }, xaxis: ax({ tickangle: 0 }), margin: { l: 56, r: 10, t: 10, b: 72 } }), cfg); }); },
+  e6(el) { const P = D.phases.find(p => p.id === "E6"); const j = P.data;
+    if (!j) { el.innerHTML = `<p class="muted">Not run yet.</p>`; return; }
+    el.innerHTML = `<div class="grid2"><div class="card"><h3>IRAC colour–colour diagram</h3><div class="plot c1" style="min-height:360px"></div><p class="caption">SPICY Class II sources: x = [4.5]−[5.8], y = [3.6]−[4.5] (mag). Arrow: extinction of A_K = 2 from the field median (Indebetouw+2005 law, almost vertical because A_4.5 = A_5.8). Dashed box: Gutermuth+2009 Class I colour region (both colours &gt; 0.7).</p></div><div class="card"><h3>Median shift relative to the field</h3><div class="plot c2" style="min-height:360px"></div><p class="caption">Median colour of clump-hosted Class II minus field Class II (mag) with bootstrap 95% intervals. Extinction moves [3.6]−[4.5] only; an envelope moves all three.</p></div></div>`;
+    const G = j.groups, keys = Object.keys(G), cols = ["--w2", "--spz", "--art"];
+    draw(null, () => { const f = G["field (|b| < 1 deg)"], mx = f.med_c2, my = f.med_c1;
+      Plotly.react(el.querySelector(".c1"), keys.slice().reverse().map((k, i) => ({ type: "scattergl", mode: "markers", name: `${k} (n=${G[k].n})`, x: G[k].x, y: G[k].y,
+        marker: { size: k.startsWith("field") ? 3 : 6, color: css(cols[keys.indexOf(k)]), opacity: k.startsWith("field") ? 0.35 : 0.8 } })),
+        base({ xaxis: ax({ title: { text: "[4.5] − [5.8] (mag)" }, range: [-0.5, 2] }), yaxis: { ...base().yaxis, title: { text: "[3.6] − [4.5] (mag)" }, range: [-0.5, 3] },
+          shapes: [{ type: "rect", x0: 0.7, x1: 2, y0: 0.7, y1: 3, line: { color: css("--muted"), dash: "dash", width: 1 } }],
+          annotations: [{ x: mx, y: my + 2 * j.E_per_AK, ax: mx, ay: my, xref: "x", yref: "y", axref: "x", ayref: "y", showarrow: true, arrowhead: 3, arrowwidth: 2, arrowcolor: css("--ink"), text: "A_K = 2", font: { color: css("--ink"), size: 11 } }] }), cfg);
+      const cs = [["d_c1", "[3.6]−[4.5]"], ["d_c2", "[4.5]−[5.8]"], ["d_c3", "[4.5]−[8.0]"]];
+      Plotly.react(el.querySelector(".c2"), ["prestellar clumps", "protostellar clumps"].map((k, i) => ({ type: "bar", name: k, x: cs.map(c => c[1]), y: cs.map(c => G[k][c[0]]),
+        marker: { color: css(cols[i]) }, error_y: { type: "data", symmetric: false, array: cs.map(c => G[k][c[0] + "_ci95"][1] - G[k][c[0]]), arrayminus: cs.map(c => G[k][c[0]] - G[k][c[0] + "_ci95"][0]), color: css("--ink") } })),
+        base({ barmode: "group", yaxis: { ...base().yaxis, title: { text: "median shift vs field (mag)" } } }), cfg); }); },
   e4(el) { const P = D.phases.find(p => p.id === "E4"); const j = P.data;
     if (!j) { el.innerHTML = `<p class="muted">Not run yet.</p>`; return; }
     el.innerHTML = `<div class="card"><div class="plot" style="min-height:300px"></div><p class="caption">Burst interval (years, log scale). Top row: this search, τ = N_eff × Δt × completeness / k with an exact 95% Poisson interval (k = ${j.k}, N_eff = ${j.on.n_eff} SPICY hosts not steadily seen by NEOWISE, Δt = ${j.dt_eff_yr} yr). Other rows: published intervals.</p></div>`;

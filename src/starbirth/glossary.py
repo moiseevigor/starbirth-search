@@ -57,6 +57,9 @@ GLOSSARY: dict[str, str] = {
     "[3.6]-[4.5]": "Spitzer IRAC colour (Vega mag) between 3.6 and 4.5 um; > 0.7 is part of the Gutermuth+2009 Class I criteria. Extinction adds E([3.6]-[4.5]) ~ 0.13 A_K (Indebetouw+2005).",
     "SPICY host": "A SPICY YSO within 3\" of a clump position (E4/E5).",
     "red fraction (E5)": "Fraction of SPICY Class II sources with [3.6]-[4.5] > 0.7 mag; 95% CI from 2,000 bootstrap resamples.",
+    "[4.5]-[5.8]": "Spitzer IRAC colour (mag); nearly extinction-free (A_4.5 = A_5.8 = 0.43 A_K, Indebetouw+2005), so it tracks intrinsic envelope emission.",
+    "Gutermuth Class I cut": "[3.6]-[4.5] > 0.7 and [4.5]-[5.8] > 0.7 mag (simplified from Gutermuth+2009).",
+    "A_K": "Extinction in the K band (mag); A_V ~ 10 A_K. Implied A_K (E6) = delta median([3.6]-[4.5]) / 0.13.",
     "min_post_frac": "Minimum fraction of visits (from onset onward) in which a turn_on source must be detected.",
     "95% UL (Poisson)": "Upper limit on a rate with k=0 events in n trials: 3/n (from -ln 0.05 ~ 3).",
     # metrics

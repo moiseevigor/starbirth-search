@@ -124,4 +124,20 @@ PHASES = [
         next="E6: deredden hosts along the reddening vector ([3.6]-[4.5] vs [4.5]-[5.8]) to separate extinction "
              "from envelope emission; then forced photometry for faint turn-ons (unTimely).",
         figs=["e5"]),
+    dict(
+        id="E6", title="Extinction or envelope?", date="2026-09-27", verdict="partial",
+        question="E5 found clump-hosted YSOs strongly reddened. Is that dust in front of them (extinction) or "
+                 "their own envelopes (intrinsically younger objects)?",
+        hypothesis="H_ext: the extinction law is flat from 4.5 to 8 um (Indebetouw+2005: A_4.5 = A_5.8 = A_8.0 = "
+                   "0.43 A_K, A_3.6 = 0.56 A_K), so clump hosts should be redder than the field in [3.6]-[4.5] but "
+                   "not in [4.5]-[5.8] (|delta median| < 0.1 mag). H_env: both colours shift.",
+        test="Median colour differences, clump Class II hosts minus field Class II, with bootstrap 95% intervals, "
+             "for [3.6]-[4.5], [4.5]-[5.8] and [4.5]-[8.0]; implied A_K = delta([3.6]-[4.5]) / 0.13.",
+        result="(computed at build time from artifacts/e6/colour_colour.json)",
+        caveats="Above A_K ~ 1 the IRAC extinction law flattens towards the Weingartner & Draine R_V = 5.5 model "
+                "(Chapman+2009), which is not exactly flat from 4.5 to 5.8 um; PAH emission at 6.2 and 7.7 um "
+                "enters [5.8] and [8.0] in bright regions.",
+        next="E7: faint (SNR < 10) turn-ons with forced photometry on unTimely epochal coadds, to reach below the "
+             "catalog threshold where very young, low-luminosity sources would first appear.",
+        figs=["e6"]),
 ]

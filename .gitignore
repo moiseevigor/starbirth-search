@@ -13,3 +13,4 @@ outputs/
 cache/
 artifacts/**/neowise_rows_*.csv
 *.egg-info/
+.claude/

@@ -1,6 +1,0 @@
-{
-  "version": "0.0.1",
-  "configurations": [
-    {"name": "viewer", "runtimeExecutable": "/Users/igor/Work/me/starbirth-search/.venv/bin/python", "runtimeArgs": ["-m", "http.server", "8765", "--directory", "/Users/igor/Work/me/starbirth-search/viewer"], "port": 8765}
-  ]
-}

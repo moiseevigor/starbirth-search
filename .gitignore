@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+.DS_Store
+data/raw/
+data/interim/
+data/processed/
+outputs/
+*.fits
+*.fits.gz
+*.parquet

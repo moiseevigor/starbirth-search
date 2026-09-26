@@ -1,0 +1,18 @@
+project: starbirth-search
+selection:
+  higal_class: prestellar
+  reliability: high
+  prefer_distance_kpc_max: 4.0
+  isolation_arcsec: 12.0
+neowise:
+  match_radius_arcsec: 3.0
+  bands: [W1, W2]
+  aggregate: epoch
+candidate:
+  delta_bic_min: 20.0
+  require_positive_step: true
+  require_persistence_epochs: 2
+  require_post_herschel: true
+image_followup:
+  cutout_pixels: 64
+  top_n: 1000

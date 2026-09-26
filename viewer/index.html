@@ -332,6 +332,19 @@ const FIG = {
     const lmax = Math.log10(F[0][1]);
     el.innerHTML = `<div class="card"><h3>From 150,223 Herschel sources to zero births</h3><div class="funnel">` + F.map(([k, n]) => `<div class="frow"><span>${esc(k)}</span><span class="bar"><b style="width:${n > 0 ? Math.max(2, 100 * Math.log10(n) / lmax) : 0}%"></b></span><span class="n num">${fmt(n)}</span></div>`).join("") + `</div><p class="caption">Cuts applied in order. Bar length: count on a log scale (1 to 150,223).</p></div>`; },
   explorer(el) { el.appendChild($("#tpl-explorer").content.cloneNode(true)); initExplorer(); },
+  e5(el) { const P = D.phases.find(p => p.id === "E5"); const j = P.data;
+    if (!j) { el.innerHTML = `<p class="muted">Not run yet.</p>`; return; }
+    el.innerHTML = `<div class="grid2"><div class="card"><h3>[3.6]−[4.5] colour of Class II sources</h3><div class="plot c1"></div><p class="caption">Cumulative fraction of SPICY Class II sources (y) with IRAC [3.6]−[4.5] colour below x (mag). Dashed line: 0.7, the Gutermuth+2009 Class I colour condition. Marker: the E4 Class II burst host SPICY 38399.</p></div><div class="card"><h3>Fraction redder than 0.7 mag</h3><div class="plot c2"></div><p class="caption">Fraction of Class II with [3.6]−[4.5] &gt; 0.7, with bootstrap 95% intervals (2,000 resamples). n per group in the labels.</p></div></div>`;
+    const G = Object.entries(j.groups), cols = ["--w2", "--spz", "--art"];
+    draw(null, () => {
+      Plotly.react(el.querySelector(".c1"), [...G.map(([k, g], i) => { const x = g.colours.slice().sort((a, b) => a - b);
+        return { type: "scatter", mode: "lines", name: k, x, y: x.map((_, n) => (n + 1) / x.length), line: { color: css(cols[i]), width: 2.5, shape: "hv" } }; }),
+        { type: "scatter", mode: "markers", name: "SPICY 38399 (G337)", x: [j.g337_host.colour], y: [1.0], marker: { size: 12, symbol: "star", color: css("--accent") } }],
+        base({ xaxis: ax({ title: { text: "[3.6] − [4.5] (mag)" }, range: [-0.5, 3] }), yaxis: { ...base().yaxis, title: { text: "cumulative fraction" }, range: [0, 1.05] },
+          shapes: [{ type: "line", x0: 0.7, x1: 0.7, y0: 0, y1: 1, yref: "paper", line: { color: css("--muted"), dash: "dash", width: 1 } }] }), cfg);
+      Plotly.react(el.querySelector(".c2"), [{ type: "bar", x: G.map(([k, g]) => `${k.replace(" (", "<br>(").replace(" clumps", "<br>clumps")}<br>n=${g.n_classII}`), y: G.map(([, g]) => g.frac_red), marker: { color: G.map((_, i) => css(cols[i])) },
+        error_y: { type: "data", symmetric: false, array: G.map(([, g]) => g.frac_red_ci95[1] - g.frac_red), arrayminus: G.map(([, g]) => g.frac_red - g.frac_red_ci95[0]), color: css("--ink") },
+        hovertemplate: "%{x}: %{y:.2f}<extra></extra>" }], base({ yaxis: { ...base().yaxis, title: { text: "fraction with [3.6]−[4.5] > 0.7" }, range: [0, 1] }, xaxis: ax({ tickangle: 0 }), margin: { l: 56, r: 10, t: 10, b: 72 } }), cfg); }); },
   e4(el) { const P = D.phases.find(p => p.id === "E4"); const j = P.data;
     if (!j) { el.innerHTML = `<p class="muted">Not run yet.</p>`; return; }
     el.innerHTML = `<div class="card"><div class="plot" style="min-height:300px"></div><p class="caption">Burst interval (years, log scale). Top row: this search, τ = N_eff × Δt × completeness / k with an exact 95% Poisson interval (k = ${j.k}, N_eff = ${j.on.n_eff} SPICY hosts not steadily seen by NEOWISE, Δt = ${j.dt_eff_yr} yr). Other rows: published intervals.</p></div>`;

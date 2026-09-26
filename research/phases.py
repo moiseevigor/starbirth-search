@@ -108,4 +108,20 @@ PHASES = [
         next="E5: test whether SPICY classes of hosts inside cold clumps are reliable (SED refit with W1-W4 "
              "and Herschel), then faint (SNR < 10) turn-ons with forced photometry on unTimely epochal coadds.",
         figs=["e4"]),
+    dict(
+        id="E5", title="Are YSO classes reliable inside clumps?", date="2026-09-27", verdict="partial",
+        question="E4 found a Class II burst rate far above the published one. Are SPICY classes trustworthy for "
+                 "YSOs sitting inside cold Hi-GAL clumps?",
+        hypothesis="SPICY 'Class II' hosts of prestellar clumps are redder in IRAC [3.6]-[4.5] than Class II "
+                   "sources in protostellar clumps or in the field (i.e. extincted or mislabelled protostars).",
+        test="Fraction of Class II with [3.6]-[4.5] > 0.7 (the Gutermuth+2009 Class I colour condition), bootstrap "
+             "95% CI, for SPICY hosts within 3\" of prestellar clumps, of protostellar clumps (both d <= 4 kpc), "
+             "and a field sample (every 20th SPICY id, |b| < 1 deg).",
+        result="(computed at build time from artifacts/e5/host_colours.json)",
+        caveats="[3.6]-[4.5] mixes extinction (E([3.6]-[4.5]) ~ 0.13 A_K) with intrinsic envelope emission and "
+                "4.5 um shocked-H2 emission; a colour-colour test against the reddening vector is needed to "
+                "separate them.",
+        next="E6: deredden hosts along the reddening vector ([3.6]-[4.5] vs [4.5]-[5.8]) to separate extinction "
+             "from envelope emission; then forced photometry for faint turn-ons (unTimely).",
+        figs=["e5"]),
 ]

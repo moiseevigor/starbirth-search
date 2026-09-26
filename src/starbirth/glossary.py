@@ -54,6 +54,9 @@ GLOSSARY: dict[str, str] = {
     "difference image": "W2 stack of a visit minus the median of the first three visits (2014-15); red = brighter, blue = fainter, white = no change.",
     "burst rate (E1)": "Completeness-corrected turn-on rate of pre-existing YSOs: k_on / (N searched * mean injection completeness), per clump over the NEOWISE window.",
     "SPICY": "Spitzer/IRAC Candidate YSO catalogue (Kuhn+2021, 117,446 sources); requires 3.6 and 4.5 um detections, so it misses the youngest Class 0 objects.",
+    "[3.6]-[4.5]": "Spitzer IRAC colour (Vega mag) between 3.6 and 4.5 um; > 0.7 is part of the Gutermuth+2009 Class I criteria. Extinction adds E([3.6]-[4.5]) ~ 0.13 A_K (Indebetouw+2005).",
+    "SPICY host": "A SPICY YSO within 3\" of a clump position (E4/E5).",
+    "red fraction (E5)": "Fraction of SPICY Class II sources with [3.6]-[4.5] > 0.7 mag; 95% CI from 2,000 bootstrap resamples.",
     "min_post_frac": "Minimum fraction of visits (from onset onward) in which a turn_on source must be detected.",
     "95% UL (Poisson)": "Upper limit on a rate with k=0 events in n trials: 3/n (from -ln 0.05 ~ 3).",
     # metrics

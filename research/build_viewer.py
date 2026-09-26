@@ -267,6 +267,22 @@ def phases() -> list[dict]:
                           "(Contreras Pena+2019): the one Class II host (SPICY 38399, W1-W2 = 2.7-3.2 in outburst) is "
                           "probably an embedded protostar mislabelled in a crowded, extincted field.")
         e4["data"] = j
+    f5 = A / "e5" / "host_colours.json"
+    e5 = next(p for p in ph if p["id"] == "E5")
+    if f5.exists():
+        j = json.loads(f5.read_text())
+        g = j["groups"]
+        pre, pro, fld = g["prestellar clumps"], g["protostellar clumps"], g["field (|b| < 1 deg)"]
+        fr = lambda x: f"{x['frac_red']:.2f} ({x['frac_red_ci95'][0]:.2f}-{x['frac_red_ci95'][1]:.2f})"  # noqa: E731
+        e5["result"] = (f"Red fraction of Class II: prestellar-clump hosts {fr(pre)} (n = {pre['n_classII']}), "
+                        f"protostellar-clump hosts {fr(pro)} (n = {pro['n_classII']}), field {fr(fld)} "
+                        f"(n = {fld['n_classII']}). Clump hosts are 2.2-2.6x redder than the field, so the "
+                        f"environment effect is confirmed; but prestellar hosts are not redder than protostellar "
+                        f"ones, so a prestellar-specific mislabelling is refuted. The E4 Class II host (SPICY 38399, "
+                        f"[3.6]-[4.5] = {j['g337_host']['colour']:.2f}) sits at the "
+                        f"{j['g337_host']['percentile_in_field_classII']:.0f}th percentile of field Class II. SPICY "
+                        f"classes are unreliable inside clumps; only the all-class E4 rate stands.")
+        e5["data"] = j
     return ph
 
 

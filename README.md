@@ -55,15 +55,20 @@ uv pip install -p .venv -e '.[dev,research]'
 - `docs/` — reports (`FEASIBILITY.md`, `LITERATURE.md`, …) with figures in `docs/figures/`
 - `artifacts/` — machine outputs (CSV tables); `cache/` — gitignored downloads (Hi-GAL catalogue)
 
+## Findings viewer
+
+`viewer/index.html` is a standalone page with every result and real telescope imagery:
+funnel, sky map of all 94,604 clumps, candidate explorer (NEOWISE light curves, per-visit
+W2 image stacks and difference images, multi-survey cutouts), artefact gallery, experiment
+charts, literature timescales and the paper library. Rebuild with
+`.venv/bin/python research/build_viewer.py` (needs network for IRSA/CDS imagery), then open
+`viewer/index.html` in a browser.
+
 ## Current status
 
-See `docs/FEASIBILITY.md`: turn-ons are expected at the ~0.1–1 level in the whole
-sample, but accretion bursts of hidden protostars outnumber them (S/B < 1), so
-birth-vs-burst discrimination is the core problem.
-
-The catalog phase is CPU/I/O-oriented. Later image experiments can use PyTorch MPS on Apple Silicon or CUDA on NVIDIA GPUs.
-
-See:
-- `docs/EXPERIMENTS.md`
-- `docs/DATASETS.md`
-- `docs/COMPUTE.md`
+- **E1 full run** (19,219 prestellar clumps, 0 < d <= 4 kpc, NEOWISE 2014-2024): 4 persistent W2
+  turn-ons (1 in the 60" offset control, a deblending artefact). All 4 had a young star already
+  (Spitzer SPICY / AllWISE), i.e. accretion outbursts or large-amplitude variability, not births.
+- **Literature** (`obsidian/`, 36 papers + synthesis): collapse models keep a newborn protostar
+  dark at 3-5 um for ~1e4 yr, so a W1/W2 archive search is a burst search, not a birth search.
+- Details: `docs/FEASIBILITY.md`, `docs/LITERATURE.md`, `viewer/index.html`.

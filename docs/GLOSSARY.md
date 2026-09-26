@@ -37,6 +37,14 @@
 | NEOWISE visit | ~6-month bin of NEOWISE-R data counted from 2013-12-13 (visit 0) to 2024-08 (visit 21); a position is observed ~once per visit for ~1 day. |
 | tracking | Following the source nearest the clump (centre = median of clean detections within 3"; keep detections within 2" of it) instead of a fixed aperture. |
 | turn_on / steady / other / none | Catalog light-curve classes: turn_on = first detection after visit 3, >=3 detected visits, detected in >= min_post_frac of visits from onset, post-onset median SNR >= 10; steady = detected from the start in >= 80% of visits; other = sporadic; none = never detected. |
+| confused | Light-curve class: would be a turn_on, but >= 50% of pre-onset visits already have any W2 detection (flags ignored) within 6" (~W2 PSF FWHM). |
+| E1 full run | Turn-on search over all 19,219 prestellar clumps with 0 < d <= 4 kpc (plus 60" offset control), NEOWISE-R 2013-12 to 2024-08. |
+| E3-lite vetting | Per-candidate archival history: NEOWISE coverage within 60", AllWISE, GLIMPSE I/II/3D, MIPSGAL, SPICY, SIMBAD (research/e3_vet_candidate.py). |
+| coverage proxy | Number of NEOWISE detections of any source within 60" in a visit; > 0 means the position was imaged in that visit. |
+| W2 stack | Median of up to 8 NEOWISE W2 single-exposure frames of one visit, reprojected to a common 64x64 grid at 1.5"/px (96" field); one brightness scale per target for all epochs. |
+| difference image | W2 stack of a visit minus the median of the first three visits (2014-15); red = brighter, blue = fainter, white = no change. |
+| burst rate (E1) | Completeness-corrected turn-on rate of pre-existing YSOs: k_on / (N searched * mean injection completeness), per clump over the NEOWISE window. |
+| SPICY | Spitzer/IRAC Candidate YSO catalogue (Kuhn+2021, 117,446 sources); requires 3.6 and 4.5 um detections, so it misses the youngest Class 0 objects. |
 | min_post_frac | Minimum fraction of visits (from onset onward) in which a turn_on source must be detected. |
 | 95% UL (Poisson) | Upper limit on a rate with k=0 events in n trials: 3/n (from -ln 0.05 ~ 3). |
 | sigma per exposure | Injected step amplitude in units of the per-exposure Gaussian noise sigma (synthetic E0 only). |

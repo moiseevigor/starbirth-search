@@ -1,0 +1,422 @@
+<title>Starbirth Atlas</title>
+<meta name="description" content="Archival search for the birth of protostars in 19,219 Hi-GAL starless clumps: data, results and real telescope imagery.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@112,600;112,800;125,800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#F4F6F9; --panel:#FFFFFF; --panel2:#EBEEF3; --ink:#141A26; --muted:#5B657A; --line:#D5DAE3;
+  --accent:#C7512F; --w1:#2F7FD6; --w2:#D9542F; --spz:#7D55C7; --hsc:#B68A12; --good:#2E8B57; --warn:#B7791F; --art:#7A8699;
+  --pre:#2F7FD6; --pro:#D9542F; --unb:#98A2B3;
+  --display:"Archivo","Arial Narrow",Arial,sans-serif; --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0E1422; --panel:#151D2E; --panel2:#1C2539; --ink:#E6E9F0; --muted:#8C97AD; --line:#27314A;
+  --accent:#FF8A63; --w1:#5AA9FF; --w2:#FF7A59; --spz:#B48CF2; --hsc:#E9C46A; --good:#5CC48A; --warn:#E3B04B; --art:#7D889C;
+  --pre:#5AA9FF; --pro:#FF7A59; --unb:#5D6A82; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#0E1422; --panel:#151D2E; --panel2:#1C2539; --ink:#E6E9F0; --muted:#8C97AD; --line:#27314A;
+  --accent:#FF8A63; --w1:#5AA9FF; --w2:#FF7A59; --spz:#B48CF2; --hsc:#E9C46A; --good:#5CC48A; --warn:#E3B04B; --art:#7D889C;
+  --pre:#5AA9FF; --pro:#FF7A59; --unb:#5D6A82; color-scheme:dark;}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 var(--body);margin:0}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:clamp(16px,3vw,32px);padding-block:0 64px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;letter-spacing:-.01em}
+h1{font-size:clamp(30px,4.6vw,54px);font-weight:800;font-stretch:125%;line-height:1.02}
+h2{font-size:clamp(22px,2.6vw,30px);font-weight:800;font-stretch:112%;line-height:1.1}
+h3{font-size:17px;font-weight:600;font-stretch:112%}
+p{margin:0;max-width:68ch}
+a{color:var(--accent)}
+.eyebrow{font:500 11px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.mono,.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+nav.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+nav.top .wrap{display:flex;gap:18px;align-items:center;padding-block:10px;overflow-x:auto;scrollbar-width:none}
+nav.top .brand{font:800 15px var(--display);font-stretch:125%;white-space:nowrap}
+nav.top a{font:500 12px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-decoration:none;white-space:nowrap}
+nav.top a:hover,nav.top a:focus-visible{color:var(--ink)}
+section{padding-top:56px;display:grid;gap:18px;scroll-margin-top:52px}
+.hero{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:36px;align-items:center;padding-top:40px}
+@media (max-width:860px){.hero{grid-template-columns:1fr}}
+.lede{font-size:17px;color:var(--muted)}
+.lede strong{color:var(--ink);font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.stat{background:var(--panel);padding:12px 14px;display:grid;gap:2px}
+.stat .v{font:800 26px var(--display);font-stretch:112%;font-variant-numeric:tabular-nums}
+.stat .k{font-size:12px;color:var(--muted);line-height:1.3}
+.flip{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;display:grid;gap:10px}
+.flip .pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sprite{aspect-ratio:1;width:100%;max-width:100%;background-repeat:no-repeat;image-rendering:pixelated;border-radius:4px;position:relative;background-color:#000}
+.cross::before,.cross::after{content:"";position:absolute;background:rgba(255,255,255,.55)}
+.cross::before{left:50%;top:30%;width:1px;height:12%}
+.cross::after{left:50%;top:58%;width:1px;height:12%}
+.cross.h::before{left:30%;top:50%;width:12%;height:1px}
+.cross.h::after{left:58%;top:50%;width:12%;height:1px}
+.xh{position:absolute;inset:0;pointer-events:none}
+.xh::before,.xh::after{content:"";position:absolute;background:rgba(255,255,255,.6)}
+.xh::before{left:30%;top:50%;width:12%;height:1px;box-shadow:calc(28cqw) 0 0 rgba(255,255,255,.6)}
+.xh::after{left:50%;top:30%;width:1px;height:12%;box-shadow:0 calc(28cqw) 0 rgba(255,255,255,.6)}
+.imgbox{container-type:inline-size;position:relative}
+.caption{font:500 11px/1.35 var(--mono);color:var(--muted)}
+.controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.controls input[type=range]{flex:1;min-width:140px;accent-color:var(--accent)}
+button,.chip{font:500 12px var(--mono);letter-spacing:.03em;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:999px;padding:6px 12px;cursor:pointer}
+button:hover,.chip:hover{border-color:var(--muted)}
+button:focus-visible,.chip:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.year{font:800 22px var(--display);font-stretch:112%;font-variant-numeric:tabular-nums;min-width:4.5ch}
+.legend-diff{display:flex;align-items:center;gap:8px;font:11px var(--mono);color:var(--muted)}
+.legend-diff i{display:inline-block;width:80px;height:8px;border-radius:2px;background:linear-gradient(90deg,#1f4bff,#fff,#ff2020)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;display:grid;gap:12px;min-width:0}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+@media (max-width:900px){.grid2,.grid3{grid-template-columns:1fr}}
+.plot{width:100%;min-height:320px}
+.funnel{display:grid;gap:6px}
+.frow{display:grid;grid-template-columns:minmax(0,15rem) minmax(0,1fr) 6.5rem;gap:12px;align-items:center}
+@media (max-width:560px){.frow{grid-template-columns:minmax(0,1fr) 5.5rem}.frow .bar{grid-column:1/-1;order:3}}
+.frow .bar{height:14px;background:var(--panel2);border-radius:2px;overflow:hidden}
+.frow .bar b{display:block;height:100%;background:var(--accent)}
+.frow .n{text-align:right}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:6px;font:600 11px var(--mono);letter-spacing:.05em;text-transform:uppercase;padding:4px 9px;border-radius:999px;border:1px solid currentColor}
+.pill.turn_on{color:var(--w2)} .pill.confused{color:var(--warn)} .pill.artefact{color:var(--art)}
+.cand{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:16px}
+@media (max-width:960px){.cand{grid-template-columns:1fr}}
+.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:10px}
+.thumb{display:grid;gap:4px}
+.thumb img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:4px;display:block}
+.facts{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:13px}
+.facts dt{color:var(--muted)} .facts dd{margin:0;font-family:var(--mono)}
+.art{display:grid;gap:8px}
+.art .plot{min-height:220px}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);background:var(--panel2);position:sticky;top:0}
+td.num{text-align:right}
+tbody tr:hover{background:var(--panel2)}
+.gloss{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.gloss div{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:10px 12px;font-size:13px}
+.gloss b{font-family:var(--mono);font-weight:500;display:block;margin-bottom:2px}
+input[type=search]{font:14px var(--body);padding:8px 12px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink);width:min(100%,360px)}
+.note{border-left:3px solid var(--accent);padding:4px 0 4px 12px;color:var(--muted);font-size:14px}
+.kv{display:flex;gap:18px;flex-wrap:wrap;font-size:13px}
+.kv span b{font-family:var(--mono);font-weight:500;color:var(--ink)}
+footer{margin-top:64px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted);font-size:12px}
+.log{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.log a{display:grid;gap:4px;padding:10px 12px;border:1px solid var(--line);border-radius:6px;background:var(--panel);text-decoration:none;color:var(--ink)}
+.log a:hover{border-color:var(--muted)}
+.log .id{font:500 11px var(--mono);color:var(--muted)}
+.log .t{font-size:13px;line-height:1.3}
+.phase{border-top:1px solid var(--line);padding-top:40px}
+.phead{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}
+.phead .pid{font:800 13px var(--mono);color:var(--bg);background:var(--ink);padding:3px 8px;border-radius:4px}
+.phead .date{font:12px var(--mono);color:var(--muted)}
+.v{display:inline-flex;font:600 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;padding:3px 9px;border-radius:999px;border:1px solid currentColor}
+.v.confirmed{color:var(--good)} .v.refuted{color:var(--w2)} .v.partial{color:var(--warn)} .v.null{color:var(--w1)} .v.pending{color:var(--art)}
+.sci{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+@media (max-width:900px){.sci{grid-template-columns:1fr}}
+.sci div{background:var(--panel);padding:12px 14px;display:grid;gap:4px;align-content:start;font-size:14px}
+.sci div.wide{grid-column:1/-1}
+.sci .eyebrow{font-size:10px}
+.figs{display:grid;gap:16px}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+</style>
+
+<nav class="top" aria-label="Sections"><div class="wrap">
+  <span class="brand">Starbirth Atlas</span>
+  <a href="#log">Research log</a><a href="#data">Data</a><a href="#phase-E3">Candidates</a><a href="#library">Library</a><a href="#glossary">Glossary</a>
+</div></nav>
+
+<main class="wrap">
+  <header class="hero">
+    <div style="display:grid;gap:18px">
+      <span class="eyebrow">Archival search · Hi-GAL × WISE/NEOWISE × Spitzer</span>
+      <h1>Ten years of watching starless clouds for a star to switch on</h1>
+      <p class="lede">We followed <strong id="h-searched">19,219</strong> Herschel "prestellar" clumps within 4 kpc through every NEOWISE visit from 2014 to 2024. <strong id="h-k">Four</strong> of them gained a new 4.6 µm source. In every case Spitzer or AllWISE had already seen a young star at that spot: these are accretion outbursts, not births. Collapse models agree that a newborn protostar stays dark at these wavelengths for about 10⁴ years.</p>
+      <div class="stats" id="stats"></div>
+    </div>
+    <figure class="flip" style="margin:0" aria-label="NEOWISE W2 image sequence of G354.2348+0.5057">
+      <div class="controls" style="justify-content:space-between">
+        <div><div class="eyebrow">NEOWISE W2 · 4.6 µm · real frames</div><h3 style="margin-top:4px">G354.2348+0.5057 switching on</h3></div>
+        <span class="year" id="hero-year">2014.5</span>
+      </div>
+      <div class="pair">
+        <div class="imgbox"><div class="sprite" id="hero-stack" role="img" aria-label="W2 image stack"></div><div class="xh"></div></div>
+        <div class="imgbox"><div class="sprite" id="hero-diff" role="img" aria-label="W2 difference image"></div><div class="xh"></div></div>
+      </div>
+      <div class="controls">
+        <button id="hero-play" type="button">Pause</button>
+        <input type="range" id="hero-slider" min="0" max="20" value="0" aria-label="Epoch">
+      </div>
+      <figcaption class="caption">Left: median stack of up to 8 single exposures per ~6-month visit, 96″ field, one brightness scale for all epochs. Right: the same visit minus the 2014–15 reference (red = brighter, blue = fainter). Crosshair: Hi-GAL clump position.</figcaption>
+    </figure>
+  </header>
+
+  <section id="log">
+    <span class="eyebrow">Research log</span>
+    <h2>Every phase, in order: question, hypothesis, test, verdict</h2>
+    <div class="log" id="log-index"></div>
+  </section>
+
+  <div id="phases"></div>
+
+  <section id="data" class="phase">
+    <span class="eyebrow">Data</span>
+    <h2>94,604 high-reliability Hi-GAL clumps along the Galactic plane</h2>
+    <div class="chips" id="sky-chips"></div>
+    <div class="card"><div id="skyplot" class="plot" style="min-height:360px"></div>
+      <p class="caption">Galactic longitude ℓ (degrees, Galactic centre at 0, increasing to the left as on the sky) against latitude b (degrees). Rings: turn-on events and follow-up targets. Drag to zoom; double-click to reset.</p></div>
+    <div class="card"><h3>Distance distribution</h3><div id="distplot" class="plot" style="min-height:260px"></div>
+      <p class="caption">Heliocentric distance (kpc, linear) of clumps with a distance, by class. Shaded: the searched range 0 &lt; d ≤ 4 kpc.</p></div>
+  </section>
+
+  <section id="library" class="phase">
+    <span class="eyebrow">Library</span>
+    <h2>The 36 papers behind these numbers</h2>
+    <p class="muted">Full notes, verbatim numbers and the synthesis live in the research vault (<span class="mono">obsidian/Research/Astrophysics</span>).</p>
+    <div class="chips" id="lib-chips"></div>
+    <div class="tablewrap"><table><thead><tr><th>Paper</th><th>Year</th><th>Venue</th><th>Theme</th><th class="num">Citations</th></tr></thead><tbody id="lib-body"></tbody></table></div>
+  </section>
+
+  <section id="glossary" class="phase">
+    <span class="eyebrow">Glossary</span>
+    <h2>Terms, labels and metrics</h2>
+    <label for="gloss-q" class="caption">Filter terms</label>
+    <input type="search" id="gloss-q" placeholder="e.g. turn_on, tau, W2">
+    <div class="gloss" id="gloss"></div>
+  </section>
+
+  <footer id="built"></footer>
+</main>
+
+<template id="tpl-explorer">
+  <div class="chips" id="cand-chips" role="group" aria-label="Choose event"></div>
+  <div class="cand">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:start">
+        <div><h3 id="c-name">…</h3><div class="caption" id="c-pos"></div></div><span class="pill" id="c-pill"></span>
+      </div>
+      <div id="lcplot" class="plot" style="min-height:360px"></div>
+      <p class="caption">W1 (3.4 µm) and W2 (4.6 µm) Vega magnitudes of every NEOWISE single exposure within 3″ (brighter is up). Diamonds: archival Spitzer [3.6]/[4.5] (plotted at 2006, GLIMPSE era) and AllWISE (2010). Grey bars, lower panel: field detections within 60″ per visit, proving the position was imaged even when the source is absent.</p>
+      <p id="c-story"></p>
+    </div>
+    <div class="card">
+      <div class="controls" style="justify-content:space-between"><div><div class="eyebrow">NEOWISE W2 epochs</div><h3 id="c-verdict" style="margin-top:4px"></h3></div><span class="year" id="c-year"></span></div>
+      <div class="pair" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="imgbox"><div class="sprite" id="c-stack" role="img" aria-label="W2 stack"></div><div class="xh"></div></div>
+        <div class="imgbox"><div class="sprite" id="c-diff" role="img" aria-label="W2 difference"></div><div class="xh"></div></div>
+      </div>
+      <div class="controls"><button id="c-play" type="button">Play</button><input type="range" id="c-slider" min="0" max="20" value="0" aria-label="Epoch"></div>
+      <div class="legend-diff"><i></i><span>fainter · no change · brighter than 2014–15</span></div>
+      <div class="eyebrow" style="margin-top:6px">Same position across surveys and decades · 3′ field</div>
+      <div class="thumbs" id="c-thumbs"></div>
+    </div>
+  </div>
+</template>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.34.0/plotly.min.js"></script>
+<script src="data.js"></script>
+<script>
+(() => {
+const D = window.SB, $ = s => document.querySelector(s);
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fmt = n => Number(n).toLocaleString("en-US");
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const E = D.experiments, br = E.burst_rate;
+const kindLabel = { turn_on: "Turn-on · pre-existing YSO", confused: "Follow-up target", artefact: "Artefact" };
+const plots = [];
+function base(extra = {}) {
+  const mut = css("--muted"), line = css("--line");
+  const ax = { gridcolor: line, zerolinecolor: line, linecolor: line, tickfont: { color: mut, family: "IBM Plex Mono", size: 11 }, title: { font: { color: mut, size: 12 } } };
+  return Object.assign({ paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)", font: { color: css("--ink"), family: "IBM Plex Sans", size: 12 },
+    margin: { l: 56, r: 14, t: 10, b: 48 }, xaxis: { ...ax }, yaxis: { ...ax },
+    legend: { orientation: "h", y: 1.14, x: 0, font: { color: mut, size: 11 } }, hoverlabel: { font: { family: "IBM Plex Mono" } } }, extra);
+}
+const ax = (o) => Object.assign({ ...base().xaxis }, o);
+const cfg = { displaylogo: false, responsive: true, modeBarButtonsToRemove: ["lasso2d", "select2d", "toImage"] };
+function draw(id, fn) { plots.push(fn); fn(); }
+function redrawAll() { plots.forEach(fn => fn()); hero.show(); cp && cp.show(); }
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => redrawAll());
+new MutationObserver(() => redrawAll()).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+// ---------------- hero
+$("#h-searched").textContent = fmt(D.counts.searched);
+$("#h-k").textContent = ["Zero", "One", "Two", "Three", "Four", "Five", "Six"][br.k_on] || br.k_on;
+$("#stats").innerHTML = [[fmt(D.counts.searched), "prestellar clumps searched, 2014–2024"], [br.k_on, "persistent 4.6 µm turn-ons found"],
+  [br.k_on, "had a young star there already"], ["0", "births (dark at 3–5 µm for ~10⁴ yr)"]]
+  .map(([v, k]) => `<div class="stat"><span class="v">${v}</span><span class="k">${k}</span></div>`).join("");
+function sprite(el, key, kind, i, n) {
+  el.style.backgroundImage = `url(img/${key}/neowise_${kind}.png)`;
+  el.style.backgroundSize = `${n * 100}% 100%`;
+  el.style.backgroundPosition = n > 1 ? `${(i / (n - 1)) * 100}% 0` : "0 0";
+}
+function player(prefix, getCand) {
+  const slider = $(`#${prefix}-slider`), btn = $(`#${prefix}-play`); let timer = null;
+  const show = () => { const c = getCand(), ep = c.epochs, i = Math.min(+slider.value, ep.length - 1); slider.max = Math.max(ep.length - 1, 0);
+    sprite($(`#${prefix}-stack`), c.key, "stack", i, ep.length); sprite($(`#${prefix}-diff`), c.key, "diff", i, ep.length);
+    $(`#${prefix}-year`).textContent = ep.length ? ep[i].year.toFixed(1) : "–"; };
+  const stop = () => { clearInterval(timer); timer = null; btn.textContent = "Play"; };
+  const play = () => { if (matchMedia("(prefers-reduced-motion: reduce)").matches) return; stop();
+    timer = setInterval(() => { slider.value = (+slider.value + 1) % (+slider.max + 1); show(); }, 450); btn.textContent = "Pause"; };
+  slider.addEventListener("input", () => { stop(); show(); }); btn.addEventListener("click", () => timer ? stop() : play());
+  return { show, play, stop };
+}
+const hero = player("hero", () => D.candidates[0]); hero.show(); hero.play();
+let cp = null, cur = 0;
+
+// ---------------- figure renderers (keyed by phases[].figs)
+const FIG = {
+  timescales(el) { el.innerHTML = `<div class="card"><h3>Durations in the life of a newborn star</h3><div class="plot" style="min-height:380px"></div><p class="caption">Durations from the collapse literature (years, log scale). The red band is this project's archival window, Herschel (2010–12) to the end of NEOWISE (2024). A birth inside the window would still be dark at 3–5 µm when it closed.</p></div>`;
+    const div = el.querySelector(".plot"); draw(null, () => { const T = D.literature.timescales.slice().reverse();
+      Plotly.react(div, [{ type: "bar", orientation: "h", y: T.map(t => t.what), x: T.map(t => Math.max(t.hi / t.lo, 1.25)), base: T.map(t => t.lo),
+        marker: { color: T.map(t => css(t.window ? "--accent" : "--w1")), opacity: T.map(t => t.window ? 0.95 : 0.7) }, text: T.map(t => t.ref), customdata: T.map(t => [t.lo, t.hi]),
+        hovertemplate: "%{y}: %{customdata[0]:.3g}–%{customdata[1]:.3g} yr<br>%{text}<extra></extra>", textposition: "none" }],
+        base({ xaxis: ax({ type: "log", title: { text: "duration (years, log scale)" }, range: [-1.3, 6.5] }), yaxis: { ...base().yaxis, automargin: true },
+          shapes: [{ type: "rect", x0: 12, x1: 15, y0: 0, y1: 1, yref: "paper", fillcolor: css("--accent"), opacity: 0.12, line: { width: 0 } }], margin: { l: 10, r: 14, t: 10, b: 48 } }), cfg); }); },
+  bursts(el) { el.innerHTML = `<div class="card"><h3>How often existing protostars burst</h3><div class="plot" style="min-height:300px"></div><p class="caption">Mean interval between accretion outbursts per protostar (years, log scale) with the published confidence interval (level in the hover). These bursts are the background every turn-on search fights.</p></div>`;
+    const div = el.querySelector(".plot"); draw(null, () => { const B = D.literature.bursts.slice().reverse();
+      Plotly.react(div, [{ type: "scatter", mode: "markers", y: B.map(b => `${b.who} · ${b.cls}`), x: B.map(b => b.tau),
+        error_x: { type: "data", symmetric: false, array: B.map(b => b.hi - b.tau), arrayminus: B.map(b => b.tau - b.lo), color: css("--w2"), thickness: 2 },
+        marker: { size: 10, color: css("--w2") }, text: B.map(b => b.ci), hovertemplate: "%{y}: %{x} yr (%{text} CI)<extra></extra>" }],
+        base({ xaxis: ax({ type: "log", title: { text: "interval between bursts (years, log)" } }), yaxis: { ...base().yaxis, automargin: true }, margin: { l: 10, r: 14, t: 10, b: 48 } }), cfg); }); },
+  e0(el) { el.innerHTML = `<div class="card"><div class="plot"></div><p class="caption">x: injected persistent step (σ per exposure). y: fraction of 2,000 synthetic curves detected (ΔBIC ≥ 20, positive step) and also localised within ±1 epoch. A software check, not an astrophysical sensitivity.</p></div>`;
+    const div = el.querySelector(".plot"); draw(null, () => { const e = E.e0;
+      Plotly.react(div, [{ type: "scatter", mode: "lines+markers", name: "detected", x: e.map(r => r.amplitude_sigma), y: e.map(r => r.detection_rate), line: { color: css("--accent"), width: 2.5 } },
+        { type: "scatter", mode: "lines+markers", name: "detected and localised ±1 epoch", x: e.map(r => r.amplitude_sigma), y: e.map(r => r.localization_rate), line: { color: css("--w1"), dash: "dot" } }],
+        base({ xaxis: ax({ title: { text: "injected step (σ per exposure)" } }), yaxis: { ...base().yaxis, title: { text: "fraction of trials" }, range: [-0.03, 1.05] } }), cfg); }); },
+  w2vis(el) { el.innerHTML = `<div class="card"><div class="plot"></div><p class="caption">Clumps (%) with an AllWISE W2 source (SNR ≥ 5) within 3″, at the clump vs 60″ away (chance). 4,000 clumps per class; error bars: binomial SE.</p></div>`;
+    const div = el.querySelector(".plot"); draw(null, () => { const v = E.w2vis;
+      Plotly.react(div, [{ type: "bar", name: "at clump position", x: v.map(r => r.group), y: v.map(r => 100 * r.f_on), marker: { color: css("--w2") },
+        error_y: { type: "data", array: v.map(r => 100 * Math.sqrt(r.f_on * (1 - r.f_on) / r.n)), color: css("--ink"), thickness: 1 } },
+        { type: "bar", name: "60″ offset (chance)", x: v.map(r => r.group), y: v.map(r => 100 * r.f_off), marker: { color: css("--art") } }],
+        base({ barmode: "group", xaxis: ax({ tickangle: -18 }), yaxis: { ...base().yaxis, title: { text: "clumps with W2 source (%)" } }, margin: { l: 56, r: 10, t: 10, b: 92 } }), cfg); }); },
+  ratio(el) { el.innerHTML = `<div class="card"><div class="plot" style="min-height:260px"></div><p class="caption">Prestellar / protostellar counts per distance bin (kpc). A constant ~1.4 means the prestellar phase lasts ~1.4× the protostellar-clump phase (steady state), at every distance.</p></div>`;
+    const div = el.querySelector(".plot"); draw(null, () => { const R = E.ratio;
+      Plotly.react(div, [{ type: "bar", x: R.map(r => r.bin.replace("(", "").replace("]", "")), y: R.map(r => r.pre / r.proto), marker: { color: css("--accent") },
+        text: R.map(r => (r.pre / r.proto).toFixed(2)), textposition: "outside", textfont: { family: "IBM Plex Mono", color: css("--muted") }, hovertemplate: "%{x} kpc: %{y:.2f}<extra></extra>" }],
+        base({ xaxis: ax({ title: { text: "distance bin (kpc)" } }), yaxis: { ...base().yaxis, title: { text: "N_pre / N_proto" }, range: [0, 2] } }), cfg); }); },
+  yield(el) { el.innerHTML = `<div class="card"><div class="plot"></div><p class="caption">Expected events in the 12-year window (count, log scale) per distance cut and protostellar-clump lifetime τ (Myr). Dots: observable births Y. Bars: burst background B across hidden-protostar fraction, burst interval and detectability. Dotted line: one event.</p></div>`;
+    const div = el.querySelector(".plot"); draw(null, () => { const g = E.yield, x = g.map(r => `${r.dmax}<br>τ=${r.tau_proto_myr}`);
+      Plotly.react(div, [{ type: "bar", name: "burst background B (range)", x, base: g.map(r => r.B_min), y: g.map(r => r.B_max - r.B_min), marker: { color: css("--w2"), opacity: 0.35 }, customdata: g.map(r => r.B_max), hovertemplate: "B %{base:.2f}–%{customdata:.1f}<extra></extra>" },
+        { type: "scatter", mode: "markers", name: "observable births Y", x, y: g.map(r => r.Y), marker: { size: 10, color: css("--w1") }, hovertemplate: "Y %{y:.3f}<extra></extra>" }],
+        base({ xaxis: ax({ tickfont: { size: 9, color: css("--muted"), family: "IBM Plex Mono" } }), yaxis: { ...base().yaxis, type: "log", title: { text: "expected events, 12 yr (log)" }, range: [-2, 2.6] },
+          shapes: [{ type: "line", xref: "paper", x0: 0, x1: 1, y0: 1, y1: 1, line: { color: css("--muted"), dash: "dot", width: 1 } }], margin: { l: 56, r: 10, t: 10, b: 70 } }), cfg); }); },
+  sweep(el) { el.innerHTML = `<div class="grid2"><div class="card"><h3>Turn-ons vs threshold</h3><div class="plot s1" style="min-height:260px"></div><p class="caption">Turn-ons in 2,000 clumps and their offset positions (count) as the required post-onset detection fraction is relaxed.</p></div><div class="card"><h3>Completeness by onset year</h3><div class="plot s2" style="min-height:260px"></div><p class="caption">Injection–recovery: early detections of real steady SNR ≥ 10 sources deleted (neighbours kept), then reclassified. Fraction recovered as a turn-on.</p></div></div>`;
+    const d1 = el.querySelector(".s1"), d2 = el.querySelector(".s2");
+    draw(null, () => { const S = E.pilot.sweep || [];
+      Plotly.react(d1, [{ type: "bar", name: "clumps", x: S.map(s => s.min_post_frac), y: S.map(s => s.on), marker: { color: css("--accent") }, text: S.map(s => s.on), textposition: "outside" },
+        { type: "bar", name: "offset", x: S.map(s => s.min_post_frac), y: S.map(s => s.off), marker: { color: css("--art") }, text: S.map(s => s.off), textposition: "outside" }],
+        base({ barmode: "group", xaxis: ax({ title: { text: "min_post_frac" }, type: "category" }), yaxis: { ...base().yaxis, title: { text: "turn-ons" }, range: [0, 5], dtick: 1 } }), cfg);
+      Plotly.react(d2, [{ type: "scatter", mode: "lines+markers", x: E.injection.map(i => i.onset_year), y: E.injection.map(i => i.recovered), line: { color: css("--w1"), width: 2.5 }, marker: { size: 9 } }],
+        base({ xaxis: ax({ title: { text: "injected onset (year)" } }), yaxis: { ...base().yaxis, title: { text: "fraction recovered" }, range: [0, 1.02] } }), cfg); }); },
+  artefacts(el) { el.innerHTML = `<h3>Four artefact classes found by checking every near-candidate by hand</h3><p class="muted">Every NEOWISE exposure within 6″ of a pilot position: W2 against time, coloured by distance from the clump (″). Hollow: exposure with a W2 contamination flag. Each class has a regression test in <span class="mono">tests/test_turn_on.py</span>.</p><div class="grid2">` +
+      D.artefacts.map(a => `<div class="card art"><h3>${esc(a.title)}</h3><div class="plot a-${a.key}"></div><p><span class="muted">Why it fooled us:</span> ${esc(a.why)}</p><p><span class="muted">Fix:</span> ${esc(a.fix)}</p></div>`).join("") + `</div>`;
+    D.artefacts.forEach(a => { const div = el.querySelector(`.a-${a.key}`); draw(null, () => {
+      Plotly.react(div, [{ type: "scatter", mode: "markers", x: a.t, y: a.w2, text: a.sep.map((s, i) => `${s}″, flag ${a.flag[i]}, SNR ${a.snr[i]}`),
+        marker: { size: 6, color: a.sep, cmin: 0, cmax: 6, colorscale: [[0, css("--w2")], [0.5, css("--hsc")], [1, css("--w1")]], symbol: a.flag.map(f => f === "0" ? "circle" : "circle-open"),
+          colorbar: { title: { text: "sep (″)", font: { size: 11, color: css("--muted") } }, thickness: 8, tickfont: { color: css("--muted"), size: 10 } } }, hovertemplate: "%{x:.2f}: W2 %{y:.2f} · %{text}<extra></extra>" }],
+        base({ xaxis: ax({ title: { text: "year" } }), yaxis: { ...base().yaxis, title: { text: "W2 (mag)" }, autorange: "reversed" }, margin: { l: 52, r: 8, t: 8, b: 44 } }), cfg); }); }); },
+  classes(el) { el.innerHTML = `<div class="card"><div class="plot"></div><p class="caption">Positions per light-curve class (log scale), prestellar clumps vs the same positions shifted 60″. Turn-on: first seen after 2015, persistent at SNR ≥ 10, empty 6″ circle before.</p><div class="kv e1kv"></div></div>`;
+    const div = el.querySelector(".plot"); draw(null, () => { const f = E.full.classes, ks = ["none", "steady", "other", "confused", "turn_on"];
+      Plotly.react(div, [{ type: "bar", name: "prestellar clumps", x: ks, y: ks.map(k => f.on[k] || 0.5), text: ks.map(k => f.on[k] || 0), textposition: "outside", marker: { color: css("--accent") } },
+        { type: "bar", name: "offset control", x: ks, y: ks.map(k => f.off[k] || 0.5), text: ks.map(k => f.off[k] || 0), textposition: "outside", marker: { color: css("--art") } }],
+        base({ barmode: "group", yaxis: { ...base().yaxis, type: "log", title: { text: "positions (log)" }, range: [-0.5, 4.7] } }), cfg); });
+    el.querySelector(".e1kv").innerHTML = [["Searched", fmt(E.full.n)], ["Turn-ons (clumps / offset)", `${br.k_on} / ${br.k_off}`], ["Completeness", (100 * E.completeness).toFixed(0) + "% (SNR ≥ 10)"],
+      ["Turn-on rate", `${(br.rate * 1e4).toFixed(1)} × 10⁻⁴ per clump`], ["95% upper limit", `${(br.ul95 * 1e4).toFixed(1)} × 10⁻⁴`]].map(([k, v]) => `<span>${k}: <b>${v}</b></span>`).join(""); },
+  funnel(el) { const F = [["Hi-GAL compact sources (Elia+2021)", D.counts.higal_total], ["High-reliability SED fits", D.counts.high_rel], ["Prestellar: bound, no 70 µm source", D.counts.prestellar],
+      ["With 0 < d ≤ 4 kpc, searched in NEOWISE", D.counts.searched], [`Persistent W2 turn-ons (offset control: ${br.k_off})`, br.k_on], ["Turn-ons with no earlier young star", 0]];
+    const lmax = Math.log10(F[0][1]);
+    el.innerHTML = `<div class="card"><h3>From 150,223 Herschel sources to zero births</h3><div class="funnel">` + F.map(([k, n]) => `<div class="frow"><span>${esc(k)}</span><span class="bar"><b style="width:${n > 0 ? Math.max(2, 100 * Math.log10(n) / lmax) : 0}%"></b></span><span class="n num">${fmt(n)}</span></div>`).join("") + `</div><p class="caption">Cuts applied in order. Bar length: count on a log scale (1 to 150,223).</p></div>`; },
+  explorer(el) { el.appendChild($("#tpl-explorer").content.cloneNode(true)); initExplorer(); },
+  e4(el) { const P = D.phases.find(p => p.id === "E4"); const j = P.data;
+    if (!j) { el.innerHTML = `<p class="muted">Not run yet.</p>`; return; }
+    el.innerHTML = `<div class="card"><div class="plot" style="min-height:300px"></div><p class="caption">Burst interval (years, log scale). Top row: this search, τ = N_eff × Δt × completeness / k with an exact 95% Poisson interval (k = ${j.k}, N_eff = ${j.on.n_eff} SPICY hosts not steadily seen by NEOWISE, Δt = ${j.dt_eff_yr} yr). Other rows: published intervals.</p></div>`;
+    const div = el.querySelector(".plot"); draw(null, () => { const L = j.literature.slice().reverse();
+      const rows = [...L.map(l => ({ y: `${l.who} (${l.ci})`, x: l.tau, lo: l.lo, hi: l.hi, c: "--w2" })), { y: "This search: E1 turn-ons of SPICY hosts (95%)", x: j.tau_yr, lo: j.tau_ci95_yr[0], hi: j.tau_ci95_yr[1] || j.tau_yr * 10, c: "--accent" }];
+      Plotly.react(div, [{ type: "scatter", mode: "markers", y: rows.map(r => r.y), x: rows.map(r => r.x), marker: { size: 11, color: rows.map(r => css(r.c)) },
+        error_x: { type: "data", symmetric: false, array: rows.map(r => r.hi - r.x), arrayminus: rows.map(r => r.x - r.lo), color: css("--muted"), thickness: 2 }, hovertemplate: "%{y}: %{x:.0f} yr<extra></extra>" }],
+        base({ xaxis: ax({ type: "log", title: { text: "interval between bursts (years, log)" } }), yaxis: { ...base().yaxis, automargin: true }, margin: { l: 10, r: 14, t: 10, b: 48 } }), cfg); }); },
+};
+
+
+// ---------------- research log
+const PH = D.phases;
+$("#log-index").innerHTML = PH.map(p => `<a href="#phase-${p.id}"><span class="id">${esc(p.id)} · ${esc(p.date)}</span><span class="t">${esc(p.title)}</span><span class="v ${p.verdict}">${p.verdict}</span></a>`).join("");
+const host = $("#phases");
+PH.forEach(p => {
+  const s = document.createElement("section"); s.className = "phase"; s.id = `phase-${p.id}`;
+  s.innerHTML = `<div class="phead"><span class="pid">${esc(p.id)}</span><h2>${esc(p.title)}</h2><span class="v ${p.verdict}">${p.verdict}</span><span class="date">${esc(p.date)}</span></div>
+    <div class="sci">
+      <div><span class="eyebrow">Question</span>${esc(p.question)}</div>
+      <div><span class="eyebrow">Hypothesis · prediction</span>${esc(p.hypothesis)}</div>
+      <div><span class="eyebrow">Test</span>${esc(p.test)}</div>
+      <div class="wide"><span class="eyebrow">Result</span><strong style="font-weight:500">${esc(p.result)}</strong></div>
+      <div class="wide" style="grid-column:span 2"><span class="eyebrow">What could still be wrong</span>${esc(p.caveats)}</div>
+      <div><span class="eyebrow">Next hypothesis</span>${esc(p.next)}</div>
+    </div><div class="figs"></div>`;
+  host.appendChild(s);
+  const figs = s.querySelector(".figs");
+  (p.figs || []).forEach(k => { const d = document.createElement("div"); figs.appendChild(d); FIG[k] && FIG[k](d); });
+});
+
+// ---------------- candidate explorer (inside E3)
+function initExplorer() {
+  $("#cand-chips").innerHTML = D.candidates.map((c, i) => `<button class="chip" type="button" data-i="${i}" aria-pressed="${i === 0}">${esc(c.name.replace("Offset control near ", "Offset "))}</button>`).join("");
+  $("#cand-chips").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; cur = +b.dataset.i;
+    document.querySelectorAll("#cand-chips .chip").forEach(x => x.setAttribute("aria-pressed", x === b)); cp.stop(); $("#c-slider").value = 0; showCand(); });
+  cp = player("c", () => D.candidates[cur]);
+  draw(null, drawLC); showCand();
+}
+function drawLC() {
+  const c = D.candidates[cur], L = c.lc, A = c.archival;
+  const tr = [{ type: "scatter", mode: "markers", name: "W1 3.4 µm", x: L.t, y: L.w1, marker: { size: 4, color: css("--w1"), opacity: 0.7 }, hovertemplate: "%{x:.2f}: W1 %{y:.2f}<extra></extra>" },
+    { type: "scatter", mode: "markers", name: "W2 4.6 µm", x: L.t, y: L.w2, marker: { size: 4, color: css("--w2"), opacity: 0.8 }, hovertemplate: "%{x:.2f}: W2 %{y:.2f}<extra></extra>" },
+    { type: "scatter", mode: "markers", name: "Archival (Spitzer / AllWISE)", x: A.map(a => a.year), y: A.map(a => a.mag), text: A.map(a => a.src),
+      marker: { symbol: "diamond", size: 11, color: A.map(a => css(a.band === "W1" ? "--w1" : "--w2")), line: { color: css("--ink"), width: 1 } }, hovertemplate: "%{text}: %{y:.2f}<extra></extra>" },
+    { type: "bar", x: c.coverage.t, y: c.coverage.n, yaxis: "y2", marker: { color: css("--line") }, hovertemplate: "%{x}: %{y} field detections<extra></extra>", showlegend: false }];
+  const ys = [...L.w1, ...L.w2, ...A.map(a => a.mag)].filter(v => v != null), lo = Math.min(...ys) - 0.4, hi = Math.max(...ys) + 0.4;
+  Plotly.react("lcplot", tr, base({ xaxis: ax({ title: { text: "year" }, range: [2005, 2025] }), yaxis: { ...base().yaxis, title: { text: "Vega mag (brighter up)" }, range: [hi, lo], domain: [0.26, 1] },
+    yaxis2: { ...base().yaxis, title: { text: "field dets" }, domain: [0, 0.18], rangemode: "tozero" } }), cfg);
+}
+function showCand() {
+  const c = D.candidates[cur];
+  $("#c-name").textContent = c.name; $("#c-pos").textContent = `RA ${c.ra.toFixed(4)}°, Dec ${c.dec.toFixed(4)}°` + (c.designation ? ` · ${c.designation}` : "");
+  const p = $("#c-pill"); p.className = `pill ${c.kind}`; p.textContent = kindLabel[c.kind];
+  $("#c-verdict").textContent = c.verdict; $("#c-story").textContent = c.story;
+  $("#c-thumbs").innerHTML = c.images.map(im => `<figure class="thumb" style="margin:0"><div class="imgbox"><img src="${im.src}" alt="${esc(im.label)} (${esc(im.wl)}) cutout, 3 arcmin" loading="lazy"><div class="xh"></div></div><figcaption class="caption"><b style="color:var(--ink)">${esc(im.label)}</b><br>${esc(im.wl)} · ${esc(im.epoch)}</figcaption></figure>`).join("");
+  drawLC(); cp.show();
+}
+
+// ---------------- data: sky + distance
+const S = D.sky, cls = { 1: ["Prestellar", "--pre"], 2: ["Protostellar", "--pro"], 0: ["Unbound starless", "--unb"] }, skyOn = { 0: false, 1: true, 2: true };
+$("#sky-chips").innerHTML = Object.entries(cls).map(([c, [n]]) => `<button class="chip" type="button" data-c="${c}" aria-pressed="${skyOn[c]}">${n}</button>`).join("");
+const byC = {}; S.c.forEach((c, i) => { (byC[c] ||= { x: [], y: [] }); byC[c].x.push(S.l[i]); byC[c].y.push(S.b[i]); });
+function drawSky() {
+  const tr = Object.entries(cls).filter(([c]) => skyOn[c]).map(([c, [n, col]]) => ({ type: "scattergl", mode: "markers", name: `${n} (${fmt(byC[c].x.length)})`, x: byC[c].x, y: byC[c].y, marker: { size: 2.4, color: css(col), opacity: 0.55 }, hoverinfo: "skip" }));
+  const cand = D.candidates.filter(c => c.kind !== "artefact");
+  tr.push({ type: "scatter", mode: "markers+text", name: "Events", x: cand.map(c => c.lb[0]), y: cand.map(c => c.lb[1]), text: cand.map(c => c.name.slice(0, 4)), textposition: "top center",
+    textfont: { color: css("--ink"), size: 11, family: "IBM Plex Mono" }, marker: { size: 14, color: "rgba(0,0,0,0)", line: { color: css("--accent"), width: 2 } }, hovertext: cand.map(c => c.name), hoverinfo: "text" });
+  Plotly.react("skyplot", tr, base({ xaxis: ax({ title: { text: "Galactic longitude ℓ (deg)" }, autorange: "reversed" }), yaxis: { ...base().yaxis, title: { text: "b (deg)" }, range: [-2.4, 2.4] }, margin: { l: 56, r: 14, t: 30, b: 48 } }), cfg);
+}
+$("#sky-chips").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; const c = b.dataset.c; skyOn[c] = !skyOn[c]; b.setAttribute("aria-pressed", skyOn[c]); drawSky(); });
+draw(null, drawSky);
+draw(null, () => { const tr = [1, 2].map(c => ({ type: "histogram", name: cls[c][0], x: S.d.filter((d, i) => S.c[i] == c && d > 0), xbins: { start: 0, end: 20, size: 0.5 }, marker: { color: css(cls[c][1]) }, opacity: 0.75 }));
+  Plotly.react("distplot", tr, base({ barmode: "overlay", xaxis: ax({ title: { text: "distance (kpc)" } }), yaxis: { ...base().yaxis, title: { text: "clumps per 0.5 kpc" } },
+    shapes: [{ type: "rect", x0: 0, x1: 4, y0: 0, y1: 1, yref: "paper", fillcolor: css("--accent"), opacity: 0.08, line: { width: 0 } }] }), cfg); });
+
+// ---------------- library + glossary
+const P = D.literature.papers, groups = [...new Set(P.map(p => p.group))]; let libG = "All";
+$("#lib-chips").innerHTML = ["All", ...groups].map(g => `<button class="chip" type="button" data-g="${esc(g)}" aria-pressed="${g === "All"}">${esc(g)}</button>`).join("");
+$("#lib-chips").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; libG = b.dataset.g; document.querySelectorAll("#lib-chips .chip").forEach(x => x.setAttribute("aria-pressed", x === b)); lib(); });
+function lib() { $("#lib-body").innerHTML = P.filter(p => libG === "All" || p.group === libG).sort((a, b) => a.year - b.year).map(p =>
+  `<tr><td>${p.url ? `<a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.title)}</a>` : esc(p.title)}<div class="caption">${esc(p.authors)}</div></td><td class="num mono">${p.year}</td><td>${esc(p.venue)}</td><td class="muted">${esc(p.group)}</td><td class="num mono">${p.cites ?? "–"}</td></tr>`).join(""); }
+lib();
+const G = Object.entries(D.glossary);
+function gloss() { const q = $("#gloss-q").value.toLowerCase(); $("#gloss").innerHTML = G.filter(([k, v]) => !q || (k + v).toLowerCase().includes(q)).map(([k, v]) => `<div><b>${esc(k)}</b>${esc(v)}</div>`).join(""); }
+$("#gloss-q").addEventListener("input", gloss); gloss();
+$("#built").textContent = `Built ${D.built} from the starbirth-search repository (research/build_viewer.py, research/phases.py). Imagery: CDS hips2fits (DSS2, 2MASS, VISTA VVV, Spitzer GLIMPSE, AllWISE, unWISE, Herschel) and IRSA NEOWISE-R single-exposure frames.`;
+})();
+</script>

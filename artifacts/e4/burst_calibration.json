@@ -1,0 +1,124 @@
+{
+ "n_searched": 19219,
+ "radius_arcsec": 3.0,
+ "dt_eff_yr": 8.0,
+ "completeness": 0.87,
+ "on": {
+  "n_host": 293,
+  "by_spicy_class": {
+   "ClassII": 121,
+   "FS": 98,
+   "ClassI": 50,
+   "uncertain": 23,
+   "ClassIII": 1
+  },
+  "by_e1_class": {
+   "none": 126,
+   "steady": 101,
+   "other": 63,
+   "turn_on": 3
+  },
+  "n_eff": 192,
+  "turn_on_hosts": [
+   {
+    "tid": 10294,
+    "spicy": 38399,
+    "class": "ClassII",
+    "mag4_5": 12.64
+   },
+   {
+    "tid": 14259,
+    "spicy": 42905,
+    "class": "ClassI",
+    "mag4_5": 11.189
+   },
+   {
+    "tid": 17643,
+    "spicy": 55207,
+    "class": "FS",
+    "mag4_5": 11.677
+   }
+  ]
+ },
+ "off": {
+  "n_host": 18,
+  "by_spicy_class": {
+   "ClassII": 9,
+   "FS": 4,
+   "uncertain": 4,
+   "ClassI": 1
+  },
+  "by_e1_class": {
+   "steady": 9,
+   "other": 5,
+   "none": 4
+  },
+  "n_eff": 9,
+  "turn_on_hosts": []
+ },
+ "k": 3,
+ "exposure_host_yr": 1336.32,
+ "tau_yr": 445.44,
+ "tau_ci95_yr": [
+  152.42139595399593,
+  2159.9809504031928
+ ],
+ "literature": [
+  {
+   "who": "Zakri+2022 Class I + flat",
+   "tau": 1741,
+   "lo": 527,
+   "hi": 12011,
+   "ci": "95%"
+  },
+  {
+   "who": "Zakri+2022 all protostars",
+   "tau": 879,
+   "lo": 400,
+   "hi": 2515,
+   "ci": "95%"
+  },
+  {
+   "who": "Park+2021 protostars (NEOWISE)",
+   "tau": 683,
+   "lo": 356,
+   "hi": 1579,
+   "ci": "90%"
+  },
+  {
+   "who": "Contreras Pena+2024 Class I FUor",
+   "tau": 1750,
+   "lo": 880,
+   "hi": 2870,
+   "ci": "68%"
+  }
+ ],
+ "consistent_with": [
+  "Zakri+2022 Class I + flat",
+  "Zakri+2022 all protostars",
+  "Park+2021 protostars (NEOWISE)",
+  "Contreras Pena+2024 Class I FUor"
+ ],
+ "by_class": [
+  {
+   "label": "Class I + flat",
+   "n_eff": 99,
+   "k": 2,
+   "tau_yr": 344.52,
+   "ci95": [
+    95.37298104640041,
+    2844.812569287797
+   ]
+  },
+  {
+   "label": "Class II",
+   "n_eff": 71,
+   "k": 1,
+   "tau_yr": 494.16,
+   "ci95": [
+    88.69196488842897,
+    19518.277423805222
+   ]
+  }
+ ]
+}

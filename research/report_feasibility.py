@@ -1,6 +1,7 @@
 """Write docs/FEASIBILITY.md (E-1 + E1-pilot) with figures in docs/figures/."""
 from __future__ import annotations
 
+import math
 from pathlib import Path
 
 import matplotlib
@@ -67,25 +68,89 @@ def fig_yield(g: pd.DataFrame) -> None:
     plt.close(fig)
 
 
-def pilot_section() -> str:
-    p = A / "e1_pilot" / "pilot_targets.csv"
-    if not p.exists() or "class_on" not in pd.read_csv(p, nrows=0).columns:
-        return "_E1-pilot not run yet._\n"
-    s = pd.read_csv(p)
-    n = len(s)
-    c = pd.DataFrame({"on-source": s.class_on.value_counts(), "offset control": s.class_off.value_counts()}).fillna(0).astype(int)
-    c = c.reindex(["none", "steady", "other", "turn_on"]).fillna(0).astype(int)
-    k_on, k_off = int(c.loc["turn_on", "on-source"]), int(c.loc["turn_on", "offset control"])
+def poisson_ul95(k: int) -> float:
+    """lambda with P(X <= k | lambda) = 0.05 (one-sided 95% upper limit), by bisection."""
+    cdf = lambda lam: sum(math.exp(-lam) * lam**i / math.factorial(i) for i in range(k + 1))  # noqa: E731
+    lo, hi = 0.0, 50.0 + 5 * k
+    for _ in range(60):
+        mid = (lo + hi) / 2
+        lo, hi = (mid, hi) if cdf(mid) > 0.05 else (lo, mid)
+    return hi
+
+
+def injection_recovery(rows: pd.DataFrame, n: int, onset: int) -> tuple[float, int]:
+    """Delete pre-onset detections of the *source itself* (within 2" of its tracked
+    centre) for steady SNR>=10 sources, keep neighbours, reclassify."""
+    from starbirth.features.turn_on import _sep_arcsec, classify, track
+    tr = track(rows)
+    c = classify(rows, n)
+    snr = tr.groupby("tid").w2snr.median()
+    ids = [i for i in c.index[c == "steady"] if snr.get(i, 0) >= 10]
+    cen = tr.groupby("tid")[["c_ra", "c_dec"]].first()
+    r = rows.join(cen, on="tid")
+    own = r.tid.isin(ids) & (_sep_arcsec(r.ra, r.dec, r.c_ra, r.c_dec) <= 2.0)
+    pre = (r.mjd - 56640.0) // 182.625 < onset
+    cc = classify(rows[~(own & pre).values], n).loc[ids]
+    return float((cc == "turn_on").mean()), len(ids)
+
+
+def result_txt(n: int, inj, sweep) -> str:
+    comp = float(np.mean([r for _, r, _ in inj]))
+    k = sweep[0]["turn_on on-source"]
+    ul = poisson_ul95(k) / n / comp
+    g = pd.read_csv(A / "e_minus1" / "yield_grid.csv")
+    g4 = g[g.dmax_kpc == 4.0].iloc[0]
+    b_lo, b_hi = g4.B_min / g4.n_pre, g4.B_max / g4.n_pre
+    y_hi = g[g.dmax_kpc == 4.0].Y.max() / g4.n_pre
+    n_full = int(g4.n_pre)
     return (
-        f"Sample: {n} prestellar clumps with 0 < d <= 4 kpc and no AllWISE W2 source at the clump "
-        "position (where E-1 sampled them), queried in NEOWISE-R single exposures within 3\".\n\n"
-        "Per-visit detection = clean W2 (w2snr >= 5, cc_flags W2 = '0', qual_frame > 0) in a ~6-month visit. "
-        "**turn_on** = first detection in visit >= 3 (not in 2014-2015), >= 3 detected visits, and detected in >= 80% "
-        "of visits from the first detection onward. **steady** = detected from the start in >= 80% of visits. "
-        "**other** = sporadic. Coverage is assumed complete every visit (no upper-limit bookkeeping yet).\n\n"
-        + c.to_markdown() + "\n\n"
-        f"Turn-on rate: on-source {k_on}/{n} = {k_on/n:.4f} (SE {se(k_on/n, n):.4f}); "
-        f"offset control {k_off}/{n} = {k_off/n:.4f} (SE {se(k_off/n, n):.4f}).\n"
+        f"**Result — prediction confirmed (null).** {k} turn-ons in {n} clumps. Completeness-corrected 95% upper "
+        f"limit on the catalog-level turn-on rate: {ul:.1e} per clump over 2014-2024 (mean completeness {comp:.2f}). "
+        f"E-1 predicts S+B per clump (d <= 4 kpc) of {b_lo:.1e}-{b_hi:.1e} (bursts) plus <= {y_hi:.1e} (births): "
+        f"the pilot already touches the top of the burst range. The full d <= 4 kpc sample ({n_full:,} clumps) "
+        f"would reach ~{poisson_ul95(0) / n_full / comp:.1e} per clump, i.e. it can bound f_hidden * p_lift / "
+        "burst_interval — a population result even if no birth is found (E6).\n\n"
+    )
+
+
+def pilot_section() -> str:
+    from starbirth.features.turn_on import classify
+    d = A / "e1_pilot"
+    p = d / "pilot_targets.csv"
+    if not p.exists() or not (d / "neowise_rows_on.csv").exists():
+        return "_E1-pilot (6\" run) not finished yet._\n"
+    n = len(pd.read_csv(p))
+    rows = {lab: pd.read_csv(d / f"neowise_rows_{lab}.csv") for lab in ("on", "off")}
+    sweep = []
+    for pf in (0.8, 0.65, 0.5, 0.35):
+        cl = {lab: classify(r, n, min_post_frac=pf) for lab, r in rows.items()}
+        k = {lab: int((c == "turn_on").sum()) for lab, c in cl.items()}
+        sweep.append({"min_post_frac": pf, "turn_on on-source": k["on"], "turn_on offset": k["off"],
+                      "confused on / off": f"{(cl['on'] == 'confused').sum()} / {(cl['off'] == 'confused').sum()}",
+                      "rate on (per clump)": f"{k['on']/n:.4f}",
+                      "95% UL on (Poisson)": f"{poisson_ul95(k['on'])/n:.4f}"})
+    base = classify(rows["on"], n).value_counts().to_dict()
+    inj = [(o, *injection_recovery(rows["on"], n, o)) for o in (3, 6, 10, 15)]
+    inj_txt = "; ".join(f"onset visit {o}: {r:.2f}" for o, r, _ in inj)
+    return (
+        f"Sample: {n} prestellar clumps, 0 < d <= 4 kpc, no AllWISE W2 source at the clump position "
+        "(where E-1 sampled them). NEOWISE-R single exposures queried within 6\"; the source is *tracked* "
+        "(centre = median of clean detections within 3\" of the clump; detections kept within 2\" of that "
+        "centre) so aperture-edge sources cannot flicker. Clean = w2snr >= 5 and W2 cc_flag '0'.\n\n"
+        "**turn_on** = first detection in NEOWISE visit >= 3 (i.e. after 2015), >= 3 detected visits, detected in "
+        ">= min_post_frac of visits from onset, post-onset median SNR >= 10, and NOT **confused** (confused = "
+        ">= 50% of pre-onset visits already have a clean detection within 6\", ~ the W2 PSF FWHM). Coverage assumed "
+        f"complete every visit (no upper-limit bookkeeping yet). Class counts at min_post_frac 0.8: {base}.\n\n"
+        + pd.DataFrame(sweep).to_markdown(index=False) + "\n\n"
+        f"**Completeness (injection).** For the {inj[0][2]} steady SNR>=10 on-source sources, deleting the source's "
+        f"own detections before the onset visit (neighbours kept) and reclassifying recovers: {inj_txt}. Losses are "
+        "the confusion veto (a neighbour within 6\") — the price of rejecting blends.\n\n"
+        + result_txt(n, inj, sweep) +
+        "**Artefacts found and fixed by self-checks** (`tests/test_turn_on.py`): (1) a steady source on the 3\" "
+        "aperture edge flickering in/out (-> tracking + 6\" query); (2) real detections dropped by a "
+        "`qual_frame > 0` cut (-> removed); (3) a steady W2 = 10.6 star 5\" away whose rare astrometric outliers "
+        "fell inside 3\" only in late visits (-> confusion veto). All candidate turn-ons so far had constant flux "
+        "(+/-0.2 mag), i.e. none showed a physical brightening.\n"
     )
 
 
@@ -160,8 +225,9 @@ pilot unless artefacts/confusion dominate.
 {pilot_section()}
 ## Open questions / next tests
 
-1. **Pilot verdict** (see above): if on-source ~ offset, catalog-level turn-ons are
-   confusion-dominated -> move to forced photometry on unTimely/unWISE epoch coadds.
+1. **Full E1 run** over all prestellar clumps with 0 < d <= 4 kpc (same classifier,
+   offset control): either candidates for vetting, or an upper limit ~10x tighter.
+   Then forced photometry on unTimely/unWISE epoch coadds for faint (SNR < 10) turn-ons.
 2. **Coverage bookkeeping**: use `neowiser_p1bs_frm` to turn missing visits into
    upper limits (current classifier assumes full coverage).
 3. **p_lift**: measure it — burst amplitude distribution (Zakri+2022, Contreras

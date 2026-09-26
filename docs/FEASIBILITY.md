@@ -74,12 +74,28 @@ exceed the offset-control rate. Prediction under E-1: on-source excess
 ~ (Y + B)/N_pre ~ 1e-4-3e-3 per clump — i.e. *undetectable* in a 2,000-clump
 pilot unless artefacts/confusion dominate.
 
-_E1-pilot not run yet._
+Sample: 2000 prestellar clumps, 0 < d <= 4 kpc, no AllWISE W2 source at the clump position (where E-1 sampled them). NEOWISE-R single exposures queried within 6"; the source is *tracked* (centre = median of clean detections within 3" of the clump; detections kept within 2" of that centre) so aperture-edge sources cannot flicker. Clean = w2snr >= 5 and W2 cc_flag '0'.
+
+**turn_on** = first detection in NEOWISE visit >= 3 (i.e. after 2015), >= 3 detected visits, detected in >= min_post_frac of visits from onset, post-onset median SNR >= 10, and NOT **confused** (confused = >= 50% of pre-onset visits already have a clean detection within 6", ~ the W2 PSF FWHM). Coverage assumed complete every visit (no upper-limit bookkeeping yet). Class counts at min_post_frac 0.8: {'none': 1813, 'steady': 117, 'other': 70}.
+
+|   min_post_frac |   turn_on on-source |   turn_on offset | confused on / off   |   rate on (per clump) |   95% UL on (Poisson) |
+|----------------:|--------------------:|-----------------:|:--------------------|----------------------:|----------------------:|
+|            0.8  |                   0 |                0 | 0 / 0               |                     0 |                0.0015 |
+|            0.65 |                   0 |                0 | 0 / 0               |                     0 |                0.0015 |
+|            0.5  |                   0 |                0 | 2 / 0               |                     0 |                0.0015 |
+|            0.35 |                   0 |                0 | 4 / 1               |                     0 |                0.0015 |
+
+**Completeness (injection).** For the 92 steady SNR>=10 on-source sources, deleting the source's own detections before the onset visit (neighbours kept) and reclassifying recovers: onset visit 3: 0.91; onset visit 6: 0.89; onset visit 10: 0.87; onset visit 15: 0.83. Losses are the confusion veto (a neighbour within 6") — the price of rejecting blends.
+
+**Result — prediction confirmed (null).** 0 turn-ons in 2000 clumps. Completeness-corrected 95% upper limit on the catalog-level turn-on rate: 1.7e-03 per clump over 2014-2024 (mean completeness 0.88). E-1 predicts S+B per clump (d <= 4 kpc) of 6.0e-05-2.7e-03 (bursts) plus <= 2.1e-05 (births): the pilot already touches the top of the burst range. The full d <= 4 kpc sample (19,328 clumps) would reach ~1.8e-04 per clump, i.e. it can bound f_hidden * p_lift / burst_interval — a population result even if no birth is found (E6).
+
+**Artefacts found and fixed by self-checks** (`tests/test_turn_on.py`): (1) a steady source on the 3" aperture edge flickering in/out (-> tracking + 6" query); (2) real detections dropped by a `qual_frame > 0` cut (-> removed); (3) a steady W2 = 10.6 star 5" away whose rare astrometric outliers fell inside 3" only in late visits (-> confusion veto). All candidate turn-ons so far had constant flux (+/-0.2 mag), i.e. none showed a physical brightening.
 
 ## Open questions / next tests
 
-1. **Pilot verdict** (see above): if on-source ~ offset, catalog-level turn-ons are
-   confusion-dominated -> move to forced photometry on unTimely/unWISE epoch coadds.
+1. **Full E1 run** over all prestellar clumps with 0 < d <= 4 kpc (same classifier,
+   offset control): either candidates for vetting, or an upper limit ~10x tighter.
+   Then forced photometry on unTimely/unWISE epoch coadds for faint (SNR < 10) turn-ons.
 2. **Coverage bookkeeping**: use `neowiser_p1bs_frm` to turn missing visits into
    upper limits (current classifier assumes full coverage).
 3. **p_lift**: measure it — burst amplitude distribution (Zakri+2022, Contreras
@@ -125,6 +141,11 @@ _E1-pilot not run yet._
 | N_T | Expected prestellar->protostellar transitions in the window: N_T = N_proto * dt / tau_proto. |
 | Y | Expected observable W2 turn-ons: Y = N_T * df_W2 * (1 - f_prehost). |
 | B | Expected accretion-burst background from protostars hidden in prestellar clumps: B = N_pre * f_hidden * dt / burst_interval. |
+| NEOWISE visit | ~6-month bin of NEOWISE-R data counted from 2013-12-13 (visit 0) to 2024-08 (visit 21); a position is observed ~once per visit for ~1 day. |
+| tracking | Following the source nearest the clump (centre = median of clean detections within 3"; keep detections within 2" of it) instead of a fixed aperture. |
+| turn_on / steady / other / none | Catalog light-curve classes: turn_on = first detection after visit 3, >=3 detected visits, detected in >= min_post_frac of visits from onset, post-onset median SNR >= 10; steady = detected from the start in >= 80% of visits; other = sporadic; none = never detected. |
+| min_post_frac | Minimum fraction of visits (from onset onward) in which a turn_on source must be detected. |
+| 95% UL (Poisson) | Upper limit on a rate with k=0 events in n trials: 3/n (from -ln 0.05 ~ 3). |
 | sigma per exposure | Injected step amplitude in units of the per-exposure Gaussian noise sigma (synthetic E0 only). |
 | delta_BIC | BIC(constant) - BIC(step); BIC = chi^2 + k ln n with k=1 (constant) or 3 (two levels + change index). Detection if >= 20 and step > 0. |
 | detection rate | Fraction of simulated curves with delta_BIC >= threshold and positive step. |

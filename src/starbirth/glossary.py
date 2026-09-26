@@ -43,6 +43,11 @@ GLOSSARY: dict[str, str] = {
     "N_T": "Expected prestellar->protostellar transitions in the window: N_T = N_proto * dt / tau_proto.",
     "Y": "Expected observable W2 turn-ons: Y = N_T * df_W2 * (1 - f_prehost).",
     "B": "Expected accretion-burst background from protostars hidden in prestellar clumps: B = N_pre * f_hidden * dt / burst_interval.",
+    "NEOWISE visit": "~6-month bin of NEOWISE-R data counted from 2013-12-13 (visit 0) to 2024-08 (visit 21); a position is observed ~once per visit for ~1 day.",
+    "tracking": "Following the source nearest the clump (centre = median of clean detections within 3\"; keep detections within 2\" of it) instead of a fixed aperture.",
+    "turn_on / steady / other / none": "Catalog light-curve classes: turn_on = first detection after visit 3, >=3 detected visits, detected in >= min_post_frac of visits from onset, post-onset median SNR >= 10; steady = detected from the start in >= 80% of visits; other = sporadic; none = never detected.",
+    "min_post_frac": "Minimum fraction of visits (from onset onward) in which a turn_on source must be detected.",
+    "95% UL (Poisson)": "Upper limit on a rate with k=0 events in n trials: 3/n (from -ln 0.05 ~ 3).",
     # metrics
     "sigma per exposure": "Injected step amplitude in units of the per-exposure Gaussian noise sigma (synthetic E0 only).",
     "delta_BIC": "BIC(constant) - BIC(step); BIC = chi^2 + k ln n with k=1 (constant) or 3 (two levels + change index). Detection if >= 20 and step > 0.",

@@ -290,10 +290,11 @@ def _validation_reading(j: dict) -> str:
     ii = j.get("injection_image")
     if ii:
         rec = {r["mag"]: r for r in ii["tier1"]}
-        m50 = next((m for m in sorted(rec) if rec[m]["recovered"] >= 0.5), None)
+        ok = [m for m in sorted(rec) if rec[m]["recovered"] >= 0.5]        # faintest magnitude still >= 50% recovered
+        m50 = f"between {max(ok)} and {min(m for m in rec if m > max(ok))}" if ok and any(m > max(ok) for m in rec) else (f"fainter than {max(rec)}" if ok else f"brighter than {min(rec)}")
         out += (f" Image-level validation: PSF sources injected into the frames of {ii['n_positions']} clump positions "
-                f"and run through the full photometry -> change-point -> threshold chain recover 50% at aperture "
-                f"W2 ~ {m50 if m50 is not None else '>' + str(max(rec))}; " + "; ".join(
+                f"and run through the full photometry -> change-point -> threshold chain (onset within 1 visit) cross 50% "
+                f"recovery at aperture W2 {m50}; " + "; ".join(
                     f"{m}: {100 * rec[m]['recovered']:.0f}%" for m in sorted(rec)) + ".")
         if ii.get("tier2"):
             out += " Tier 2 (mask + uncertainty) on a subsample: " + "; ".join(

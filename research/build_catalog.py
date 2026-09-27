@@ -27,6 +27,7 @@ from viewer_imagery import diff_snr, hips_cutouts, neowise_stacks  # noqa: E402
 A = ROOT / "artifacts"
 OUT = ROOT / "viewer" / "catalog"
 NEO0 = 56640.0
+R_MATCH = 5.5     # arcsec: forced-photometry aperture radius (2 px), see starbirth.features.forced_phot
 
 
 def yr(mjd):
@@ -52,16 +53,21 @@ def checklist(det: dict) -> tuple[list[dict], str]:
     cov = ar["coverage"]
     pre_cov = [n for v, n in zip(range(22), cov) if onset is not None and v < onset]
     e1 = det["e1_rows"]
+    # anything inside the photometry aperture (R_MATCH = 5.5") contributes to the measured rise, so every
+    # "was there a source before?" test uses that radius, not the 3" association radius
     pre_cat = [1 for t, snr, sp in zip(e1["t"], e1["snr"], e1["sep"])
-               if onset is not None and t < 2013.95 + onset * 0.5 and snr >= 5 and sp <= 3]
-    within3 = lambda rows: [r for r in rows if (r.get("sep") or 99) <= 3]  # noqa: E731
+               if onset is not None and t < 2013.95 + onset * 0.5 and (snr or 0) >= 5 and sp <= R_MATCH]
+    within = lambda rows: [r for r in rows if (r.get("sep") or 99) <= R_MATCH]  # noqa: E731
+    pre_sig = s.get("pre_sig")
     items = [
         ("covered_pre", "Position imaged before onset (field detections within 60\" in >= 80% of pre-onset visits)",
          bool(pre_cov) and np.mean([n > 0 for n in pre_cov]) >= 0.8),
-        ("no_catalog_pre", "No NEOWISE catalog W2 detection (SNR >= 5) within 3\" before onset", onset is not None and not pre_cat),
-        ("no_spitzer", "No Spitzer (GLIMPSE / Vela-Carina) or SPICY source within 3\"",
-         not within3(ar["glimpse"]) and not within3(ar["spicy"])),
-        ("no_allwise", "No AllWISE (2010) source within 3\"", not within3(ar["allwise"])),
+        ("pre_quiet", "Forced pre-onset flux < 3 sigma (no source in the aperture before onset)",
+         pre_sig is not None and pre_sig < 3),
+        ("no_catalog_pre", f"No NEOWISE catalog W2 detection (SNR >= 5) within {R_MATCH}\" before onset", onset is not None and not pre_cat),
+        ("no_spitzer", f"No Spitzer (GLIMPSE / Vela-Carina) or SPICY source within {R_MATCH}\"",
+         not within(ar["glimpse"]) and not within(ar["spicy"])),
+        ("no_allwise", f"No AllWISE (2010) source within {R_MATCH}\"", not within(ar["allwise"])),
         ("tier2_rise", "Rise confirmed with mask + uncertainty images (tier 2)", bool(fp.get("confirmed"))),
         ("post_signif", "Post-onset flux >= 5 sigma", (s.get("post_sig") or 0) >= 5),
         ("diff_source", "Point source at the target in the difference image (>= 5 sigma)", (det.get("diff_snr") or 0) >= 5),
@@ -143,13 +149,41 @@ def main() -> None:
 
     with ThreadPoolExecutor(4) as ex:
         details = list(ex.map(build, cands.values()))
-    gallery = [{k: d[k] for k in ("key", "tid", "arm", "designation", "ra", "dec", "e1_class", "stratum",
-                                  "machine_verdict", "onset_year", "diff_snr")}
-               | {"props": d["props"], "confirmed": d["forced"]["confirmed"],
-                  "dbic": (d["forced"]["tier2"] or d["forced"]["tier1"] or {}).get("dbic"),
-                  "thumb": f"img/{d['key']}/neowise_diff.png" if d["epochs"] else None,
-                  "n_epochs": len(d["epochs"]), "passes": sum(x["pass"] for x in d["checklist"])}
-               for d in details]
+    write_index(details, s, on_cls, off_cls, res, measured, rises, spicy, cands)
+
+
+def gallery_rows(details: list[dict]) -> list[dict]:
+    return [{k: d[k] for k in ("key", "tid", "arm", "designation", "ra", "dec", "e1_class", "stratum",
+                               "machine_verdict", "onset_year", "diff_snr")}
+            | {"props": d["props"], "confirmed": d["forced"]["confirmed"],
+               "dbic": (d["forced"]["tier2"] or d["forced"]["tier1"] or {}).get("dbic"),
+               "thumb": f"img/{d['key']}/neowise_diff.png" if d["epochs"] else None,
+               "n_epochs": len(d["epochs"]), "passes": sum(x["pass"] for x in d["checklist"]),
+               "n_checks": len(d["checklist"])}
+            for d in details]
+
+
+def rescore() -> None:
+    """Recompute checklists/verdicts from the saved detail files (no network) and rewrite index.js."""
+    s = pd.read_csv(A / "e1_full" / "pilot_targets.csv")
+    on_cls, off_cls = classes()
+    res = json.loads((A / "e7b" / "results.json").read_text())
+    rises = {(r["arm"], r["tid"]): r for r in res["rises"]}
+    design = pd.read_csv(A / "e7b" / "design.csv")
+    measured = {(a, t): st for a, t, st in zip(design.arm, design.tid, design.stratum)}
+    spicy = set(pd.read_csv(A / "e4" / "spicy_on.csv").tid)
+    details, cands = [], {}
+    for f in sorted(OUT.glob("*.json")):
+        d = json.loads(f.read_text())
+        d["checklist"], d["machine_verdict"] = checklist(d)
+        f.write_text(json.dumps(clean(d)))
+        details.append(d)
+        cands[d["key"]] = d
+    write_index(details, s, on_cls, off_cls, res, measured, rises, spicy, cands)
+
+
+def write_index(details, s, on_cls, off_cls, res, measured, rises, spicy, cands) -> None:
+    gallery = gallery_rows(details)
     cat = pd.DataFrame({"tid": s.index, "designation": s.designation, "l": s.glon.round(3), "b": s.glat.round(3),
                         "dist": s.dist.round(2), "mass": s.mass.round(1), "temp": s.temp.round(1),
                         "lbol": s.l_bol.round(1), "e1_on": on_cls.reindex(s.index).values,
@@ -167,4 +201,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    rescore() if "--rescore" in sys.argv else main()

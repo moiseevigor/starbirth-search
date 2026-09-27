@@ -298,7 +298,8 @@ def _catalog_reading() -> str:
             first = x["machine_verdict"].split(": ")[1].split(", ")[0]
             top[first] = top.get(first, 0) + 1
     why = ", ".join(f"{k} {v}" for k, v in sorted(top.items(), key=lambda kv: -kv[1])[:3])
-    return (f" Review catalog: {len(g)} flagged clump positions, {len(ok)} birth-compatible after the 8-point "
+    n_checks = max((x.get("n_checks", 0) for x in g), default=0)
+    return (f" Review catalog: {len(g)} flagged clump positions, {len(ok)} birth-compatible after the {n_checks}-point "
             f"archival checklist; commonest first failure: {why}.")
 
 

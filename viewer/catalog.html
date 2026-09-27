@@ -179,10 +179,12 @@ const ax = o => Object.assign({ ...base().xaxis }, o);
 let reviews = [], online = false;
 const latest = () => { const m = {}; reviews.forEach(r => m[r.key] = r); return m; };
 async function loadReviews() {
-  try { const r = await fetch("/api/reviews", { cache: "no-store" }); if (!r.ok) throw 0; reviews = await r.json(); online = true; }
+  let info = { store: "reviews/reviews.jsonl", in_repo: true };
+  try { const r = await fetch("/api/reviews", { cache: "no-store" }); if (!r.ok) throw 0; reviews = await r.json(); online = true;
+    const i = await fetch("/api/info", { cache: "no-store" }); if (i.ok) info = await i.json(); }
   catch { online = false; }
-  $("#srv-dot").className = "dot " + (online ? "ok" : "ro");
-  $("#srv-txt").textContent = online ? `saving to reviews/reviews.jsonl · ${reviews.length} entries` : "read-only: start scripts/serve_catalog.py to save reviews";
+  $("#srv-dot").className = "dot " + (online ? (info.in_repo ? "ok" : "ro") : "ro");
+  $("#srv-txt").textContent = online ? `saving to ${info.store}${info.in_repo ? "" : " (outside the repo)"} · ${reviews.length} entries` : "read-only: start scripts/serve_catalog.py to save reviews";
 }
 async function saveReview(rec) {
   const r = await fetch("/api/reviews", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(rec) });
@@ -350,7 +352,7 @@ function renderDetail(d) {
   $("#rv-form").onsubmit = async e => { e.preventDefault(); const fd = new FormData(e.target);
     const rec = { key: d.key, decision: fd.get("decision"), reasoning: (fd.get("reasoning") || "").trim(), reviewer: (fd.get("reviewer") || "").trim(), tags: fd.getAll("tags"), machine_verdict: d.machine_verdict };
     try { localStorage.setItem("sb-reviewer", rec.reviewer); } catch {}
-    try { await saveReview(rec); $("#rv-msg").className = "msg okm"; $("#rv-msg").textContent = `Saved: ${rec.decision}.`; renderDetail(d); gallery(); }
+    try { await saveReview(rec); renderDetail(d); gallery(); $("#rv-msg").className = "msg okm"; $("#rv-msg").textContent = `Saved: ${rec.decision} (${new Date().toLocaleTimeString()}).`; }
     catch (err) { $("#rv-msg").className = "msg err"; $("#rv-msg").textContent = err.message; } };
 }
 

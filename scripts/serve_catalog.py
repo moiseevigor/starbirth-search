@@ -5,6 +5,7 @@ reviews/reviews.jsonl inside the repo (append-only; the latest entry per candida
 is its current decision, earlier ones are the audit trail).
 
     .venv/bin/python scripts/serve_catalog.py            # http://127.0.0.1:8792/catalog.html
+    .venv/bin/python scripts/serve_catalog.py --store /tmp/x.jsonl   # e.g. a scratch log for a dry run
 Binds to 127.0.0.1 only.
 """
 from __future__ import annotations
@@ -61,8 +62,12 @@ class Handler(SimpleHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self):  # noqa: N802
-        if self.path.split("?")[0] == "/api/reviews":
+        path = self.path.split("?")[0]
+        if path == "/api/reviews":
             return self._json(200, read_reviews())
+        if path == "/api/info":
+            where = STORE.relative_to(ROOT) if STORE.is_relative_to(ROOT) else STORE
+            return self._json(200, {"store": str(where), "in_repo": STORE.is_relative_to(ROOT)})
         return super().do_GET()
 
     def do_POST(self):  # noqa: N802
@@ -88,11 +93,15 @@ class Handler(SimpleHTTPRequestHandler):
 
 
 def main() -> None:
+    global STORE
     p = argparse.ArgumentParser()
     p.add_argument("--port", type=int, default=8792)
+    p.add_argument("--store", type=Path, default=STORE, help="review log file (default reviews/reviews.jsonl)")
     a = p.parse_args()
+    STORE = a.store
     srv = ThreadingHTTPServer(("127.0.0.1", a.port), partial(Handler, directory=str(WEB)))
-    print(f"review catalog: http://127.0.0.1:{a.port}/catalog.html  (reviews -> {STORE.relative_to(ROOT)})")
+    where = STORE.relative_to(ROOT) if STORE.is_relative_to(ROOT) else STORE
+    print(f"review catalog: http://127.0.0.1:{a.port}/catalog.html  (reviews -> {where})", flush=True)
     srv.serve_forever()
 
 

@@ -14,7 +14,7 @@ One entry per phase, in order: question -> hypothesis -> test -> result -> verdi
 | E4 | Burst-rate calibration against the literature | 2026-09-27 | **confirmed** |
 | E5 | Are YSO classes reliable inside clumps? | 2026-09-27 | **partial** |
 | E6 | Extinction or envelope? | 2026-09-27 | **partial** |
-| E7 | Faint turn-ons with forced photometry | 2026-09-27 | **confirmed** |
+| E7 | Faint turn-ons with forced photometry | 2026-09-27 | **superseded** |
 | E7b | Faint rises, symmetric re-test | 2026-09-27 | **null** |
 | E8 | Which dust hides a newborn at 4.6 um? | 2026-09-27 | **partial** |
 
@@ -180,7 +180,7 @@ One entry per phase, in order: question -> hypothesis -> test -> result -> verdi
 
 ## E7 · Faint turn-ons with forced photometry
 
-*2026-09-27 · verdict: **confirmed***
+*2026-09-27 · verdict: **superseded***
 
 **Question.** Below the NEOWISE catalog threshold, do prestellar clumps show faint persistent brightenings that the catalog-level search (E1) could not see?
 
@@ -204,11 +204,11 @@ One entry per phase, in order: question -> hypothesis -> test -> result -> verdi
 
 **Test.** Both arms classified by the same E1 rule on their own detections and sampled per stratum (all variable, 500 none, 300 steady); rates weighted by stratum size. Frames with qual_frame = 0 or moon < 15 deg dropped; per-visit error = max(propagated, robust scatter) plus a systematic floor calibrated on offsets (median reduced chi^2 = 1); threshold = population-weighted 99th percentile of offsets (>= 20). Tier 2 remeasures every rise with L1b mask (fatal bits) and uncertainty images. Injection-recovery on real clump light curves. 'From nothing' needs pre-onset flux < 3 sigma, no catalog detection before onset, post-onset >= 5 sigma and a >= 5 sigma difference-image source.
 
-**Result.** Threshold delta-BIC 47; floor s_abs = 0, s_rel = 0.028. Population-weighted rise rate (tier 2): clumps 183.1e-4 vs offsets 77.2e-4, difference 105.8e-4 (95% CI -12.1 to 227.6); tier 1: 120.0e-4 (-18.5 to 266.9). none: 7/500 vs 4/500 (Fisher p = 0.273). steady: 21/300 vs 1/300 (Fisher p = 0.000). variable: 31/689 vs 3/495 (Fisher p = 0.000). Clump rises with pre < 3 sigma and post >= 5 sigma (tier 2): 4; each is in the review desk. Reading: the excess is confined to positions that already host a catalog source; the 'none' stratum, the only place a source could appear from nothing, shows no significant excess (7/500 vs 4/500, p = 0.27). Because 'none' carries 91% of the population weight, the weighted difference is driven by it.
+**Result.** Threshold delta-BIC 47; floor s_abs = 0, s_rel = 0.028. Population-weighted rise rate (tier 2): clumps 183.1e-4 vs offsets 77.2e-4, difference 105.8e-4 (95% CI -12.1 to 227.6); tier 1: 120.0e-4 (-18.5 to 266.9). none: 7/500 vs 4/500 (Fisher p = 0.273). steady: 21/300 vs 1/300 (Fisher p = 0.000). variable: 31/689 vs 3/495 (Fisher p = 0.000). Clump rises with pre < 3 sigma and post >= 5 sigma (tier 2): 4; each is in the review desk. Reading: the excess is confined to positions that already host a catalog source; the 'none' stratum, the only place a source could appear from nothing, shows no significant excess (7/500 vs 4/500, p = 0.27). Because 'none' carries 91% of the population weight, the weighted difference is driven by it. Review catalog: 73 flagged clump positions, 0 birth-compatible after the 9-point archival checklist; commonest first failure: pre_quiet 63, no_spitzer 3, covered_pre 3.
 
 **What could still be wrong.** Aperture photometry still blends neighbours within ~6"; the offset arm samples the Galactic field, not clump backgrounds, so the FPR calibration is approximate at structured positions.
 
-**Next.** Human review of every candidate in the local review desk (scripts/serve_catalog.py).
+**Next.** Human review of every flagged candidate in the local review desk (scripts/serve_catalog.py); the far-IR/sub-mm two-epoch test remains the only route to a birth signal.
 
 ## E8 · Which dust hides a newborn at 4.6 um?
 
@@ -288,7 +288,7 @@ One entry per phase, in order: question -> hypothesis -> test -> result -> verdi
 | tier 1 / tier 2 (E7b) | Tier 1: forced photometry on quality-filtered intensity frames at every sampled position. Tier 2: every tier-1 rise remeasured with the L1b mask (fatal bits excluded) and uncertainty images; only tier-2 rises count. |
 | fatal mask bits | WISE L1b mask bits 0-4, 9, 10-18 (Explanatory Supplement IV.4.a), plus 21, 26-28 (transient bad pixel, non-linearity, cosmic ray / spike) rejected here. |
 | diff-image S/N | Peak of (median post-onset stack - median pre-onset stack) within 3" of the target over the robust std of the difference map beyond 9". |
-| machine checklist | Eight automatic tests a birth start must pass (coverage, no earlier catalog/Spitzer/AllWISE source, tier-2 rise, post-onset >= 5 sigma, difference-image source, quiet offset twin); all pass = birth-compatible. |
+| machine checklist | Nine automatic tests a birth start must pass: pre-onset coverage, forced pre-onset flux < 3 sigma, no catalog/Spitzer/AllWISE source within the 5.5" aperture before onset, tier-2 rise, post-onset >= 5 sigma, difference-image source >= 5 sigma, quiet offset twin; all pass = birth-compatible. |
 | review decision | Human verdict recorded in reviews/reviews.jsonl: approve (birth start), refute or unsure, with reasoning, reviewer and tags; latest entry per candidate is current. |
 | surf_dens | Hi-GAL clump surface density Sigma (g cm^-2), beam-averaged from the 250 um size and the SED mass. |
 | A_4.5 (E8) | Extinction at 4.5 um from Sigma: N_H2 = Sigma / (2.8 m_H); A_V = 2 N_H2 / 1.87e21 (Bohlin+1978); A_K = 0.112 A_V (Rieke & Lebofsky 1985); A_4.5 = 0.43 A_K (Indebetouw+2005); a central source sees half. |

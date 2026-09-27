@@ -173,7 +173,8 @@ PHASES = [
         result="(computed at build time from artifacts/e7b/results.json)",
         caveats="Aperture photometry still blends neighbours within ~6\"; the offset arm samples the Galactic field, "
                 "not clump backgrounds, so the FPR calibration is approximate at structured positions.",
-        next="Human review of every candidate in the local review desk (scripts/serve_catalog.py).",
+        next="Human review of every flagged candidate in the local review desk (scripts/serve_catalog.py); "
+             "the far-IR/sub-mm two-epoch test remains the only route to a birth signal.",
         figs=["e7b"]),
     dict(
         id="E8", title="Which dust hides a newborn at 4.6 um?", date="2026-09-27", verdict="partial",

@@ -69,7 +69,7 @@ GLOSSARY: dict[str, str] = {
     "tier 1 / tier 2 (E7b)": "Tier 1: forced photometry on quality-filtered intensity frames at every sampled position. Tier 2: every tier-1 rise remeasured with the L1b mask (fatal bits excluded) and uncertainty images; only tier-2 rises count.",
     "fatal mask bits": "WISE L1b mask bits 0-4, 9, 10-18 (Explanatory Supplement IV.4.a), plus 21, 26-28 (transient bad pixel, non-linearity, cosmic ray / spike) rejected here.",
     "diff-image S/N": "Peak of (median post-onset stack - median pre-onset stack) within 3\" of the target over the robust std of the difference map beyond 9\".",
-    "machine checklist": "Eight automatic tests a birth start must pass (coverage, no earlier catalog/Spitzer/AllWISE source, tier-2 rise, post-onset >= 5 sigma, difference-image source, quiet offset twin); all pass = birth-compatible.",
+    "machine checklist": "Nine automatic tests a birth start must pass: pre-onset coverage, forced pre-onset flux < 3 sigma, no catalog/Spitzer/AllWISE source within the 5.5\" aperture before onset, tier-2 rise, post-onset >= 5 sigma, difference-image source >= 5 sigma, quiet offset twin; all pass = birth-compatible.",
     "review decision": "Human verdict recorded in reviews/reviews.jsonl: approve (birth start), refute or unsure, with reasoning, reviewer and tags; latest entry per candidate is current.",
     "surf_dens": "Hi-GAL clump surface density Sigma (g cm^-2), beam-averaged from the 250 um size and the SED mass.",
     "A_4.5 (E8)": "Extinction at 4.5 um from Sigma: N_H2 = Sigma / (2.8 m_H); A_V = 2 N_H2 / 1.87e21 (Bohlin+1978); A_K = 0.112 A_V (Rieke & Lebofsky 1985); A_4.5 = 0.43 A_K (Indebetouw+2005); a central source sees half.",

@@ -60,6 +60,9 @@ GLOSSARY: dict[str, str] = {
     "[4.5]-[5.8]": "Spitzer IRAC colour (mag); nearly extinction-free (A_4.5 = A_5.8 = 0.43 A_K, Indebetouw+2005), so it tracks intrinsic envelope emission.",
     "Gutermuth Class I cut": "[3.6]-[4.5] > 0.7 and [4.5]-[5.8] > 0.7 mag (simplified from Gutermuth+2009).",
     "A_K": "Extinction in the K band (mag); A_V ~ 10 A_K. Implied A_K (E6) = delta median([3.6]-[4.5]) / 0.13.",
+    "forced photometry (E7)": "Aperture flux at a fixed sky position in every NEOWISE W2 frame (r = 2 px = 5.5\", sky = median of a 4-7 px annulus), normalised to zeropoint 22.5 (m = 22.5 - 2.5 log10 f), median per visit.",
+    "rise (E7)": "Forced-photometry light curve with a positive persistent step, onset in visits 3-19, and delta_BIC above the offset-calibrated threshold (1% false positives).",
+    "from nothing (E7)": "A rise whose pre-onset median flux is < 3 robust sigma above zero, i.e. no source detected before the onset.",
     "min_post_frac": "Minimum fraction of visits (from onset onward) in which a turn_on source must be detected.",
     "95% UL (Poisson)": "Upper limit on a rate with k=0 events in n trials: 3/n (from -ln 0.05 ~ 3).",
     # metrics

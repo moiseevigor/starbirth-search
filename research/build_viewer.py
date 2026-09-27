@@ -301,6 +301,21 @@ def phases() -> list[dict]:
                         f"these 'Class II' hosts pass the full Gutermuth Class I colour cut vs "
                         f"{100 * g['field (|b| < 1 deg)']['frac_gutermuth_classI']:.0f}% in the field.")
         e6["data"] = j
+    f7 = A / "e7" / "summary.json"
+    e7 = next(p for p in ph if p["id"] == "E7")
+    if f7.exists():
+        j = json.loads(f7.read_text())
+        on, off = j["on"], j["off"]
+        e7["verdict"] = "confirmed" if on["rises"] > max(3 * off["rises"], off["rises"] + 3) else "null"
+        e7["result"] = (f"Threshold delta-BIC >= {j['threshold_dbic']:.0f} (1% false positives on offsets). Rises: "
+                        f"{on['rises']} of {on['n']} clump positions vs {off['rises']} of {off['n']} offsets; "
+                        f"{on['from_nothing']} clump rises start from no detectable source. By E1 class: "
+                        + ", ".join(f"{k} {v}" for k, v in on["by_e1_class"].items()) + ". All 4 E1 turn-ons and "
+                        "G261 were recovered blind. After requiring no catalog detection within 3\" before onset, the "
+                        "remaining 'from nothing' rises are the E1 events G337 and G59 (both with earlier Spitzer/AllWISE "
+                        "sources) and one sky-subtraction artefact (pre and post flux <= 0). The excess is variability "
+                        "of existing sources in clumps, the same population as E4; no new birth candidate.")
+        e7["data"] = j
     return ph
 
 

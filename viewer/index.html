@@ -359,6 +359,19 @@ const FIG = {
       Plotly.react(el.querySelector(".c2"), ["prestellar clumps", "protostellar clumps"].map((k, i) => ({ type: "bar", name: k, x: cs.map(c => c[1]), y: cs.map(c => G[k][c[0]]),
         marker: { color: css(cols[i]) }, error_y: { type: "data", symmetric: false, array: cs.map(c => G[k][c[0] + "_ci95"][1] - G[k][c[0]]), arrayminus: cs.map(c => G[k][c[0]] - G[k][c[0] + "_ci95"][0]), color: css("--ink") } })),
         base({ barmode: "group", yaxis: { ...base().yaxis, title: { text: "median shift vs field (mag)" } } }), cfg); }); },
+  e7(el) { const P = D.phases.find(p => p.id === "E7"); const j = P.data;
+    if (!j) { el.innerHTML = `<p class="muted">Running: results appear after the next rebuild.</p>`; return; }
+    const C = j.candidates.slice(0, 8);
+    el.innerHTML = `<div class="card"><h3>Change-point strength, clumps vs offsets</h3><div class="plot h1" style="min-height:280px"></div><p class="caption">Distribution of ΔBIC (log₁₀ of max(ΔBIC, 1)) for the best persistent step in each forced-photometry light curve. Dashed line: the threshold set to 1% false positives on offset positions.</p></div>
+      <h3>Strongest rises at clump positions</h3><div class="grid2">` + C.map((c, i) => `<div class="card"><div class="caption"><b style="color:var(--ink)">tid ${c.tid}</b> · E1 class ${esc(c.e1_class)} · ${esc(c.kind)} · ΔBIC ${fmt(Math.round(c.dbic))} · onset ${c.onset_year} · RA ${c.ra.toFixed(4)} Dec ${c.dec.toFixed(4)}</div><div class="plot k${i}" style="min-height:200px"></div></div>`).join("") + `</div><p class="caption">W2 forced flux per visit (zeropoint 22.5, so m = 22.5 − 2.5 log₁₀ f; 5.5″ aperture, not aperture-corrected) with robust errors. Dotted line: fitted onset.</p>`;
+    draw(null, () => { const lg = v => Math.log10(Math.max(v, 1));
+      Plotly.react(el.querySelector(".h1"), [{ type: "histogram", name: `clumps (n=${j.on.n})`, x: j.on.dbic.map(lg), opacity: 0.75, marker: { color: css("--accent") }, xbins: { size: 0.1 } },
+        { type: "histogram", name: `offsets (n=${j.off.n})`, x: j.off.dbic.map(lg), opacity: 0.6, marker: { color: css("--art") }, xbins: { size: 0.1 } }],
+        base({ barmode: "overlay", xaxis: ax({ title: { text: "log₁₀ ΔBIC" } }), yaxis: { ...base().yaxis, type: "log", title: { text: "positions (log)" } },
+          shapes: [{ type: "line", x0: lg(j.threshold_dbic), x1: lg(j.threshold_dbic), y0: 0, y1: 1, yref: "paper", line: { color: css("--ink"), dash: "dash", width: 1.5 } }] }), cfg);
+      C.forEach((c, i) => Plotly.react(el.querySelector(`.k${i}`), [{ type: "scatter", mode: "markers", x: c.year, y: c.flux, error_y: { type: "data", array: c.err, color: css("--muted"), thickness: 1 }, marker: { size: 6, color: css("--w2") }, hovertemplate: "%{x}: %{y:.0f}<extra></extra>" }],
+        base({ showlegend: false, xaxis: ax({ range: [2013.8, 2024.8] }), yaxis: { ...base().yaxis, title: { text: "W2 flux" } }, margin: { l: 56, r: 8, t: 6, b: 30 },
+          shapes: [{ type: "line", x0: c.onset_year, x1: c.onset_year, y0: 0, y1: 1, yref: "paper", line: { color: css("--accent"), dash: "dot" } }] }), cfg)); }); },
   e4(el) { const P = D.phases.find(p => p.id === "E4"); const j = P.data;
     if (!j) { el.innerHTML = `<p class="muted">Not run yet.</p>`; return; }
     el.innerHTML = `<div class="card"><div class="plot" style="min-height:300px"></div><p class="caption">Burst interval (years, log scale). Top row: this search, τ = N_eff × Δt × completeness / k with an exact 95% Poisson interval (k = ${j.k}, N_eff = ${j.on.n_eff} SPICY hosts not steadily seen by NEOWISE, Δt = ${j.dt_eff_yr} yr). Other rows: published intervals.</p></div>`;

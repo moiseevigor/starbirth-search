@@ -75,9 +75,9 @@ def vet(designation: str) -> dict:
     mep = cone("allwise_p3as_mep", "ra, dec, mjd, w1mpro_ep, w2mpro_ep, w2sigmpro_ep", ra, dec, 6)
     mep["sep"] = sep(mep.ra, mep.dec, ra, dec)
     mep.to_csv(out / "allwise_mep.csv", index=False)
-    # GLIMPSE I covers 10<|l|<65, GLIMPSE II |l|<10, GLIMPSE 3D higher |b|: query all three archives
+    # GLIMPSE I 10<|l|<65, II |l|<10, 3D higher |b|, Vela-Carina l=255-295: query all four archives
     gl = pd.concat([cone(t, "ra, dec, mag3_6, mag4_5, mag5_8, mag8_0", ra, dec, 6).assign(survey=t)
-                    for t in ("glimpse_s07_ar", "glimpse2_v2arc", "glimpse3d_v2arc")], ignore_index=True)
+                    for t in ("glimpse_s07_ar", "glimpse2_v2arc", "glimpse3d_v2arc", "velcara")], ignore_index=True)
     gl["sep"] = sep(gl.ra, gl.dec, ra, dec)
     gl.to_csv(out / "glimpse.csv", index=False)
     mg = cone("mipsgalc", "ra, dec, mag_24, fnu_24", ra, dec, 6)

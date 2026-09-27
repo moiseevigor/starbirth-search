@@ -140,4 +140,20 @@ PHASES = [
         next="E7: faint (SNR < 10) turn-ons with forced photometry on unTimely epochal coadds, to reach below the "
              "catalog threshold where very young, low-luminosity sources would first appear.",
         figs=["e6"]),
+    dict(
+        id="E7", title="Faint turn-ons with forced photometry", date="2026-09-27", verdict="pending",
+        question="Below the NEOWISE catalog threshold, do prestellar clumps show faint persistent brightenings that "
+                 "the catalog-level search (E1) could not see?",
+        hypothesis="Rises (positive change point, onset 2015.5-2023.5) at clump positions exceed the offset-control "
+                   "rate once the delta-BIC threshold is set to a 1% false-positive rate on the offsets.",
+        test="Forced aperture photometry (r = 5.5\", sky annulus 11-19\") on every NEOWISE-R W2 frame at 685 "
+             "'other'/'confused'/'turn_on' positions plus 500 random 'none' positions and their 60\" offsets; "
+             "per-visit medians; E0 change-point scan. Self-check: G354, G337 and G261 recovered blind "
+             "(delta-BIC 5666 / 3010 / 414), offsets flat.",
+        result="(computed at build time from artifacts/e7/summary.json)",
+        caveats="Fixed-aperture photometry is blended with neighbours in crowded fields; a varying neighbour inside "
+                "5.5\" mimics a rise. 'From nothing' uses pre-onset flux < 3 sigma, not a true upper limit.",
+        next="E8: characterise the faint-rise population (amplitudes, W1-W2 colours, onset years) against "
+             "the E4 burst rate, and extend vetting to the Vela-Carina Spitzer survey (l = 255-295 deg).",
+        figs=["e7"]),
 ]

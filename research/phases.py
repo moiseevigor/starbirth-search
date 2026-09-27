@@ -177,7 +177,7 @@ PHASES = [
              "the far-IR/sub-mm two-epoch test remains the only route to a birth signal.",
         figs=["e7b"]),
     dict(
-        id="E8", title="Which dust hides a newborn at 4.6 um?", date="2026-09-27", verdict="partial",
+        id="E8", title="Which dust hides a newborn at 4.6 um? (scenario)", date="2026-09-27", verdict="partial",
         question="The literature says a newborn protostar is dark at 3-5 um. Is it the clump's own beam-averaged "
                  "dust column (which Hi-GAL measures) or the unresolved inner envelope, and how much is simply "
                  "distance?",
@@ -189,11 +189,11 @@ PHASES = [
              "Class 0 median ([4.5] = 12.16 at 420 pc for 5.5 L_sun, F_4.5 ~ L); fraction detectable with and "
              "without clump extinction for L = 1, 5, 25, 100 L_sun.",
         result="(computed at build time from artifacts/e8/extinction_budget.json)",
-        caveats="F_4.5 ~ L is crude (the 4.5 um flux of Class 0 sources is scattered/shocked light and depends on "
-                "geometry); the HOPS median already includes an evolved envelope, so a fresh newborn (no near-IR "
-                "for ~2e4 yr per Masunaga & Inutsuka 2000) is fainter still: these are upper bounds on "
-                "detectability. Sigma is beam-averaged (Hi-GAL 250 um beam ~18\"), so the inner envelope column "
-                "is not included by construction.",
+        caveats="This is a scenario on an observed anchor, not a decomposition: the HOPS [4.5] values already "
+                "contain envelope, geometry and Orion foreground extinction, so the inner-envelope term cannot be "
+                "isolated and 'distance' vs 'clump column' are relative shifts. F_4.5 ~ L is crude (scattered/shocked "
+                "light). A fresh newborn (no near-IR for ~2e4 yr per Masunaga & Inutsuka 2000) is fainter than any HOPS "
+                "source, so all fractions are upper bounds. Sigma is beam-averaged (Hi-GAL 250 um beam ~18\").",
         next="Human review of every flagged candidate (review desk), then the far-IR/sub-mm two-epoch test that "
              "the literature identifies as the band where a birth first shows.",
         figs=["e8"]),

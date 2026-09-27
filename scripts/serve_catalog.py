@@ -30,11 +30,9 @@ CSRF = secrets.token_urlsafe(24)          # per-run token, handed to the page vi
 PORT = 8792
 
 
-def catalog_keys() -> set[str] | None:
-    """Candidate keys in the built catalog (None if it has not been built)."""
+def catalog_keys() -> set[str]:
+    """Candidate keys in the built catalog. Raises if the catalog is missing or unreadable (callers fail closed)."""
     f = WEB / "catalog" / "index.js"
-    if not f.exists():
-        return None
     js = json.loads(f.read_text().split("=", 1)[1].rstrip().rstrip(";"))
     return {g["key"] for g in js["gallery"]}
 
@@ -112,8 +110,11 @@ class Handler(SimpleHTTPRequestHandler):
             rec = validate(json.loads(self.rfile.read(n) or b"{}"))
         except (ValueError, json.JSONDecodeError) as e:
             return self._json(400, {"error": str(e)})
-        keys = catalog_keys()
-        if keys is not None and rec["key"] not in keys:
+        try:
+            keys = catalog_keys()
+        except (OSError, ValueError, KeyError, IndexError):
+            return self._json(503, {"error": "review catalog missing or unreadable; rebuild with research/build_catalog.py"})
+        if rec["key"] not in keys:
             return self._json(400, {"error": "unknown candidate key"})
         with LOCK:
             STORE.parent.mkdir(parents=True, exist_ok=True)
@@ -127,6 +128,10 @@ class Handler(SimpleHTTPRequestHandler):
         super().end_headers()
 
 
+def make_server(port: int) -> ThreadingHTTPServer:
+    return ThreadingHTTPServer(("127.0.0.1", port), partial(Handler, directory=str(WEB)))
+
+
 def main() -> None:
     global STORE, PORT
     p = argparse.ArgumentParser()
@@ -135,7 +140,7 @@ def main() -> None:
     a = p.parse_args()
     STORE = a.store
     PORT = a.port
-    srv = ThreadingHTTPServer(("127.0.0.1", a.port), partial(Handler, directory=str(WEB)))
+    srv = make_server(a.port)
     where = STORE.relative_to(ROOT) if STORE.is_relative_to(ROOT) else STORE
     print(f"review catalog: http://127.0.0.1:{a.port}/catalog.html  (reviews -> {where})", flush=True)
     srv.serve_forever()

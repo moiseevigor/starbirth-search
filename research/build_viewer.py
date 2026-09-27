@@ -285,28 +285,35 @@ def _stratum_reading(j: dict) -> str:
 
 
 def _validation_reading(j: dict) -> str:
-    """Image-level injection and tier-1 negative audit (research/e7b_validation.py), if run."""
+    """Image-level injection (joint recovery) and the symmetric tier-1 negative audit (research/e7b_validation.py)."""
     out = ""
     ii = j.get("injection_image")
+    pct = lambda r: f"{100 * r['recovered']:.0f}% ({100 * r['ci95'][0]:.0f}-{100 * r['ci95'][1]:.0f})" if "ci95" in r else f"{100 * r['recovered']:.0f}%"  # noqa: E731
     if ii:
-        rec = {r["mag"]: r for r in ii["tier1"]}
-        ok = [m for m in sorted(rec) if rec[m]["recovered"] >= 0.5]        # faintest magnitude still >= 50% recovered
-        m50 = f"between {max(ok)} and {min(m for m in rec if m > max(ok))}" if ok and any(m > max(ok) for m in rec) else (f"fainter than {max(rec)}" if ok else f"brighter than {min(rec)}")
-        out += (f" Image-level validation: PSF sources injected into the frames of {ii['n_positions']} clump positions "
-                f"and run through the full photometry -> change-point -> threshold chain (onset within 1 visit) cross 50% "
-                f"recovery at aperture W2 {m50}; " + "; ".join(
-                    f"{m}: {100 * rec[m]['recovered']:.0f}%" for m in sorted(rec)) + ".")
-        if ii.get("tier2"):
-            out += " Tier 2 (mask + uncertainty) on a subsample: " + "; ".join(
-                f"{r['mag']}: {100 * r['recovered']:.0f}% (n={r['n']})" for r in ii["tier2"]) + "."
-        if ii.get("diff_gate"):
-            out += " Difference-image gate (>= 5 sigma) on injected sources: " + "; ".join(
-                f"{r['mag']}: {100 * r['passed']:.0f}%" for r in ii["diff_gate"]) + "."
+        t1 = sorted(ii["tier1"], key=lambda r: r["mag"])
+        out += (f" Image-level validation: PSF sources injected into the frames of {ii['n_positions']} clump positions. "
+                f"Tier 1 alone (photometry -> change point -> threshold, onset within 1 visit): " +
+                "; ".join(f"{r['mag']:g}: {pct(r)}" for r in t1) + ".")
+        if ii.get("joint"):
+            jt = sorted(ii["joint"], key=lambda r: r["mag"])
+            ok = [r["mag"] for r in jt if r["recovered"] >= 0.5]
+            out += (" Joint recovery through the full candidate path (tier 1 AND tier 2 mask+uncertainty AND >= 5 sigma "
+                    "difference-image source), on a 12-position subsample: " +
+                    "; ".join(f"{r['mag']:g}: {r['k']}/{r['n']} = {pct(r)}" for r in jt) +
+                    (f". The joint 50% point lies at aperture W2 ~ {max(ok):g}" if ok else ". Joint recovery is below 50% at every tested magnitude") +
+                    " (exact binomial 95% intervals in parentheses).")
     na = j.get("negative_audit")
-    if na:
-        out += (f" Tier-1 negative audit: {na['n']} random tier-1 negatives remeasured with mask + uncertainty images; "
-                f"{na['became_rise']} cross the threshold at tier 2 (screening miss rate "
-                f"{100 * na['became_rise'] / max(na['n'], 1):.1f}%).")
+    if na and "cells" in na:
+        cells = ", ".join(f"{c['arm']}/{c['stratum']} {c['k']}/{c['n']} (<= {100 * c['ci95'][1]:.0f}%)" for c in na["cells"])
+        m = na["weighted_miss_ub95"]
+        scr = j["rates"]["rise2"].get("screening", {})
+        rng_ = scr.get("diff_range_adj")
+        out += (f" Symmetric tier-1 negative audit ({na['n']} positions remeasured with mask + uncertainty images, both arms, "
+                f"every stratum): {na['became_rise']} cross the threshold at tier 2. Per-cell miss rates with exact 95% upper "
+                f"bounds: {cells}. Population-weighted miss-rate upper bounds: clumps {100 * m['on']:.1f}%, offsets "
+                f"{100 * m['off']:.1f}%." + (f" Propagating the worst asymmetry, the true clump-minus-offset difference lies in "
+                                            f"[{1e4 * rng_[0]:.0f}, {1e4 * rng_[1]:.0f}] x 1e-4; the verdict rule (bootstrap lower bound > 0) is "
+                                            f"unchanged by it." if rng_ else ""))
     return out
 
 
@@ -318,6 +325,7 @@ def _catalog_reading() -> str:
     js = json.loads(f.read_text().split("=", 1)[1].rstrip().rstrip(";"))
     g = [x for x in js["gallery"] if x["arm"] == "on"]
     ok = [x for x in g if x["machine_verdict"] == "birth-compatible"]
+    unv = [x for x in g if x["machine_verdict"].startswith("birth-compatible (unverifiable")]
     top = {}
     for x in g:
         if x["machine_verdict"].startswith("refuted"):
@@ -326,7 +334,8 @@ def _catalog_reading() -> str:
     why = ", ".join(f"{k} {v}" for k, v in sorted(top.items(), key=lambda kv: -kv[1])[:3])
     n_checks = max((x.get("n_checks", 0) for x in g), default=0)
     return (f" Review catalog: {len(g)} flagged clump positions, {len(ok)} birth-compatible after the {n_checks}-point "
-            f"archival checklist; commonest first failure: {why}.")
+            f"archival checklist ({len(unv)} pass every available check but lie outside a Spitzer/MIPSGAL footprint and "
+            f"are marked unverifiable); commonest first failure: {why}.")
 
 
 def phases() -> list[dict]:
@@ -426,24 +435,24 @@ def phases() -> list[dict]:
     if f8.exists():
         j = json.loads(f8.read_text())
         pl = {p["L"]: p for p in j["per_lum"]}
-        def rule(L):
-            d0, d1 = pl[L]["frac_detectable_no_ext"], pl[L]["frac_detectable_clump_ext"]
-            if d0 < 0.5:
-                return f"{L:g} L_sun: distance alone leaves {100 * d0:.0f}% detectable (H_dist holds; clump extinction -> {100 * d1:.0f}%)"
-            if d1 < 0.5:
-                return (f"{L:g} L_sun: distance alone leaves {100 * d0:.0f}% detectable but the clump column flips the majority "
-                        f"below threshold ({100 * d1:.0f}%; H_clump holds)")
-            return f"{L:g} L_sun: mostly detectable even after clump extinction ({100 * d0:.0f}% -> {100 * d1:.0f}%; neither hides it)"
+        an = j.get("anchor", {})
+        bd = lambda p, k: f"{100 * p[k][1]:.0f}% (16-84%: {100 * p[k][0]:.0f}-{100 * p[k][2]:.0f})" if k in p else "n/a"  # noqa: E731
+        rows = "; ".join(f"{L:g} L_sun: distance term alone {bd(pl[L], 'band_no_ext')}, with the clump column "
+                         f"{bd(pl[L], 'band_clump_ext')}" for L in sorted(pl))
+        e8["verdict"] = "partial"
         e8["result"] = (f"{j['n']:,} prestellar clumps: median clump column A_V = {j['a_v_full_pct']['50']:.0f} "
                         f"(10-90%: {j['a_v_full_pct']['10']:.0f}-{j['a_v_full_pct']['90']:.0f}), i.e. A_4.5 at the "
                         f"centre {j['a45_centre_pct']['50']:.2f} mag (90th pct {j['a45_centre_pct']['90']:.1f}). "
-                        "Verdicts are luminosity-conditional (decision rule: which step first pushes the majority of "
-                        "clumps below W2 = 14.3): " + "; ".join(rule(L) for L in sorted(pl)) + ". "
-                        f"The 100 L_sun figure ({100 * pl[100.0]['frac_detectable_clump_ext']:.0f}%) is an upper bound above "
-                        f"the 26% W2 visibility measured in E-1B for the youngest protostellar clumps (median L_bol ~ 100 "
-                        f"L_sun), as expected since geometry, multiplicity and inner-envelope extinction are not modelled. "
-                        "So: for the faint newborns the collapse models predict (<= 5 L_sun) distance alone hides them; "
-                        "for 25 L_sun the clump column is decisive; the inner envelope is on top of both in every case.")
+                        f"Model-dependent scenario, not a decomposition: the anchor is the OBSERVED [4.5] of "
+                        f"{an.get('n_hops_class0', '?')} HOPS Class 0 sources scaled to 5.5 L_sun (median {an.get('mnorm_median', float('nan')):.2f}, "
+                        f"16-84% {an.get('mnorm_p16_p84', [0, 0])[0]:.2f}-{an.get('mnorm_p16_p84', [0, 0])[1]:.2f} mag), which already "
+                        "contains Orion envelopes, viewing geometry and foreground extinction, so the inner envelope is not "
+                        "separable and 'distance' and 'clump column' are shifts relative to an Orion-like Class 0. Fraction "
+                        f"of clumps in which such a source would reach W2 = 14.3 (Monte Carlo over the anchor scatter): {rows}. "
+                        "Reading: for the <= 5 L_sun newborns the collapse models predict, distance alone leaves almost none "
+                        "detectable; at 25 L_sun the clump column shifts a borderline majority below threshold, but the "
+                        "band width shows this is anchor-limited; the 100 L_sun figure is an upper bound above the 26% "
+                        "measured in E-1B, as expected since multiplicity and inner-envelope extinction are not modelled.")
         e8["data"] = j
     return ph
 

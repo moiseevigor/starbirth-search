@@ -45,8 +45,40 @@ def classes() -> tuple[pd.Series, pd.Series]:
     return c["on"], c["off"]
 
 
+# Spitzer Galactic-plane survey footprints used for the archival vetoes (Churchwell+2009; Carey+2009; Vela-Carina
+# l = 255-295). Positions outside them get an 'unavailable' state, never a pass.
+def spitzer_covered(l: float, b: float) -> bool:
+    l = l % 360
+    inner = (10 <= l <= 65 or 295 <= l <= 350) and abs(b) <= 1.0          # GLIMPSE I
+    centre = (l <= 10 or l >= 350) and abs(b) <= 1.0                       # GLIMPSE II (|b| < 1 conservative)
+    velcar = 255 <= l <= 295 and abs(b) <= 1.0                             # Vela-Carina
+    return bool(inner or centre or velcar)
+
+
+def mipsgal_covered(l: float, b: float) -> bool:
+    l = l % 360
+    return bool((10 <= l <= 65 or 295 <= l <= 350 or l <= 10 or l >= 350) and abs(b) <= 1.0)
+
+
+STELLAR_OTYPES = ("*", "IR", "NIR", "MIR", "YSO", "Y*", "TT", "Or", "Em", "FU", "V*", "Ae")
+NONSTELLAR_OTYPES = {"smm", "cor", "MoC", "DNe", "HII", "Cld", "Rad", "mm", "cm", "PoC", "GNe", "RNe", "ISM", "bub", "sh"}
+
+
+def simbad_stellar(rows: list[dict]) -> list[dict]:
+    """SIMBAD objects that indicate a pre-existing star/YSO (the Hi-GAL clump itself is 'smm' and is ignored)."""
+    out = []
+    for r in rows or []:
+        ot = str(r.get("otype") or "")
+        if not ot or ot in NONSTELLAR_OTYPES or "error" in r:
+            continue
+        if any(tok in ot for tok in STELLAR_OTYPES):
+            out.append(r)
+    return out
+
+
 def checklist(det: dict) -> tuple[list[dict], str]:
-    """Machine evidence for 'birth start' = a new source where nothing was before."""
+    """Machine evidence for 'birth start' = a new source where nothing was before.
+    Each item is pass / fail / n/a (archive does not cover the position); n/a never counts as a pass."""
     fp = det.get("forced", {})
     s = fp.get("tier2") or fp.get("tier1") or {}
     onset = s.get("onset_visit")
@@ -60,6 +92,12 @@ def checklist(det: dict) -> tuple[list[dict], str]:
                if onset is not None and t < 2013.95 + onset * 0.5 and (snr or 0) >= 5 and sp <= R_MATCH]
     within = lambda rows: [r for r in rows if (r.get("sep") or 99) <= R_MATCH]  # noqa: E731
     pre_sig = s.get("pre_sig")
+    P = det.get("props", {})
+    l, b = P.get("glon"), P.get("glat")
+    sp_cov = spitzer_covered(l, b) if l is not None and b is not None else False
+    mg_cov = mipsgal_covered(l, b) if l is not None and b is not None else False
+    sb_ok = not (ar.get("simbad") and "error" in ar["simbad"][0])
+    NA = object()
     items = [
         ("covered_pre", "Position imaged before onset (field detections within 60\" in >= 80% of pre-onset visits)",
          bool(pre_cov) and np.mean([n > 0 for n in pre_cov]) >= 0.8),
@@ -68,17 +106,27 @@ def checklist(det: dict) -> tuple[list[dict], str]:
          pre_sig is not None and abs(pre_sig) < 3),
         ("no_catalog_pre", f"No NEOWISE catalog W2 detection (SNR >= 5) within {R_MATCH}\" before onset", onset is not None and not pre_cat),
         ("no_spitzer", f"No Spitzer (GLIMPSE / Vela-Carina) or SPICY source within {R_MATCH}\"",
-         not within(ar["glimpse"]) and not within(ar["spicy"])),
+         (not within(ar["glimpse"]) and not within(ar["spicy"])) if sp_cov else NA),
+        ("no_mipsgal", f"No MIPSGAL 24 um source within {R_MATCH}\" (embedded sources absent at 3-5 um)",
+         (not within(ar.get("mipsgal", []))) if mg_cov else NA),
         ("no_allwise", f"No AllWISE (2010) source within {R_MATCH}\"", not within(ar["allwise"])),
+        ("no_simbad_star", f"No SIMBAD star / YSO / IR source within {R_MATCH}\" (clump entries ignored)",
+         (not within(simbad_stellar(ar.get("simbad", [])))) if sb_ok else NA),
         ("tier2_rise", "Rise confirmed with mask + uncertainty images (tier 2)", bool(fp.get("confirmed"))),
         ("post_signif", "Post-onset flux >= 5 sigma", (s.get("post_sig") or 0) >= 5),
         ("diff_source", "Point source at the target in the difference image (>= 5 sigma)", (det.get("diff_snr") or 0) >= 5),
-        ("offset_quiet", "Offset twin (60\") measured with the same photometry and shows no rise",
+        ("offset_quiet", "Offset twin (60\") measured through tier 2 with the same photometry and shows no rise",
          det.get("offset_status") == "quiet"),
     ]
-    out = [{"id": i, "label": lab, "pass": bool(ok)} for i, lab, ok in items]
-    fails = [o["id"] for o in out if not o["pass"]]
-    verdict = "birth-compatible" if not fails else "refuted: " + ", ".join(fails)
+    out = [{"id": i, "label": lab, "pass": (ok is not NA and bool(ok)), "na": ok is NA} for i, lab, ok in items]
+    fails = [o["id"] for o in out if not o["pass"] and not o["na"]]
+    nas = [o["id"] for o in out if o["na"]]
+    if fails:
+        verdict = "refuted: " + ", ".join(fails)
+    elif nas:
+        verdict = "birth-compatible (unverifiable: " + ", ".join(nas) + ")"
+    else:
+        verdict = "birth-compatible"
     if det["arm"] == "off":
         verdict = "control: " + verdict
     return out, verdict
@@ -90,28 +138,33 @@ def e7b_calibration() -> tuple[Floor, float]:
 
 
 def offset_status(tid: int, rises: dict, floor: Floor, thr: float) -> str:
-    """quiet / rise / unmeasured for the 60\" offset twin of clump position tid, from its own forced photometry."""
-    f = E7B_CACHE / f"t1_off_{tid}.json"
-    if not f.exists():
-        return "unmeasured"
-    st = stats(json.loads(f.read_text()), floor)
-    if not st.get("ok"):
-        return "unmeasured"
-    if eligible(st) and st["dbic"] >= thr:
-        r = rises.get(("off", tid))
-        return "rise" if r is None or r.get("confirmed", True) else "rise (tier 1 only)"
-    return "quiet"
+    """quiet / rise / quiet (tier 1 only) / unmeasured for the 60\" offset twin of clump position tid.
+    'quiet' requires the tier-2 (mask + uncertainty) measurement, the same gate a candidate must pass."""
+    f2, f1 = E7B_CACHE / f"t2_off_{tid}.json", E7B_CACHE / f"t1_off_{tid}.json"
+    if f2.exists():
+        st = stats(json.loads(f2.read_text()), floor)
+        if st.get("ok"):
+            return "rise" if (eligible(st) and st["dbic"] >= thr) else "quiet"
+    if f1.exists():
+        st = stats(json.loads(f1.read_text()), floor)
+        if st.get("ok"):
+            return "rise (tier 1 only)" if (eligible(st) and st["dbic"] >= thr) else "quiet (tier 1 only)"
+    return "unmeasured"
 
 
 def measure_offset_twins(tids: list[int], s: pd.DataFrame, workers: int = 12) -> int:
     """Forced photometry at the 60\" offset of every clump candidate that lacks it (same code path as E7b tier 1).
     Files use the E7b naming so offset_status() finds them; the E7b analysis ignores them (not in design.csv)."""
-    todo = [t for t in tids if not (E7B_CACHE / f"t1_off_{t}.json").exists()]
+    todo = [t for t in tids if not ((E7B_CACHE / f"t1_off_{t}.json").exists() and (E7B_CACHE / f"t2_off_{t}.json").exists())]
 
     def one(t):
-        r = light_curve(float(s.ra[t]), float(s.dec[t]) + 60 / 3600)
-        r.update(arm="off", tid=int(t), stratum="twin")
-        (E7B_CACHE / f"t1_off_{t}.json").write_text(json.dumps(clean(r)))
+        for tier, full in ((1, False), (2, True)):
+            f = E7B_CACHE / f"t{tier}_off_{t}.json"
+            if f.exists():
+                continue
+            r = light_curve(float(s.ra[t]), float(s.dec[t]) + 60 / 3600, full=full)
+            r.update(arm="off", tid=int(t), stratum="twin")
+            f.write_text(json.dumps(clean(r)))
     with ThreadPoolExecutor(workers) as ex:
         list(ex.map(one, todo))
     return len(todo)
@@ -196,7 +249,7 @@ def gallery_rows(details: list[dict]) -> list[dict]:
                "dbic": (d["forced"]["tier2"] or d["forced"]["tier1"] or {}).get("dbic"),
                "thumb": f"img/{d['key']}/neowise_diff.png" if d["epochs"] else None,
                "n_epochs": len(d["epochs"]), "passes": sum(x["pass"] for x in d["checklist"]),
-               "n_checks": len(d["checklist"])}
+               "n_na": sum(x.get("na", False) for x in d["checklist"]), "n_checks": len(d["checklist"])}
             for d in details]
 
 

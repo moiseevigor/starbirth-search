@@ -10,10 +10,16 @@ Per prestellar clump (0 < d <= 4 kpc):
   A_K  = 0.112 A_V                              (Rieke & Lebofsky 1985)
   A_4.5 = 0.43 A_K                              (Indebetouw+2005)
 A source at the clump centre sees half the column: A_4.5(centre) = A_4.5 / 2.
-Unextincted W2 of a Class 0 source, scaled from the HOPS median (Furlan+2016, vault
-note: [4.5] = 12.16 Vega at 420 pc for L_tot = 5.5 L_sun), assuming F_4.5 ~ L:
-  W2_0(L, d) = 12.16 - 2.5 log10(L / 5.5) + 5 log10(d / 0.42 kpc)
-Detectable if W2_0 + A_4.5(centre) <= 14.3 (NEOWISE 90% completeness, single exposure).
+Anchor: the OBSERVED Spitzer [4.5] of HOPS Class 0 protostars (Furlan+2016, VizieR
+J/ApJS/224/5), each scaled to 5.5 L_sun (m_norm = [4.5] + 2.5 log10(L_tot / 5.5)). This is a
+model-dependent scenario, not a decomposition: the anchor already contains the Orion
+envelopes, viewing geometry and foreground extinction of those sources, so 'distance' and
+'clump column' below are shifts relative to an Orion-like Class 0, and the inner envelope
+is not separable. Monte Carlo: each clump draws m_norm from the HOPS distribution
+(two-level bootstrap: resample the anchor set, then the exact expectation per clump), giving
+16-50-84% bands on the detectable fraction that reflect the anchor sample's own uncertainty:
+  W2(L, d) = m_norm - 2.5 log10(L / 5.5) + 5 log10(d / 0.42 kpc) [+ A_4.5(centre)]
+Detectable if W2 <= 14.3 (NEOWISE 90% completeness, single exposure).
 Writes artifacts/e8/extinction_budget.json.
 """
 from __future__ import annotations
@@ -42,8 +48,35 @@ def a45_from_sigma(sigma_g_cm2: np.ndarray) -> np.ndarray:
     return A45_PER_AK * AK_PER_AV * a_v
 
 
-def w2_unextincted(lum: float, d_kpc: np.ndarray) -> np.ndarray:
-    return HOPS_W2 - 2.5 * np.log10(lum / HOPS_L) + 5 * np.log10(d_kpc / HOPS_D)
+def w2_unextincted(lum: float, d_kpc: np.ndarray, m_norm: float = HOPS_W2) -> np.ndarray:
+    return m_norm - 2.5 * np.log10(lum / HOPS_L) + 5 * np.log10(d_kpc / HOPS_D)
+
+
+def hops_class0_mnorm() -> np.ndarray:
+    """Luminosity-normalised observed [4.5] (Vega) of HOPS Class 0 sources; cached; fallback = median + 0.8 mag scatter."""
+    f = ROOT / "cache" / "hops_class0_mnorm.json"
+    if f.exists():
+        return np.array(json.loads(f.read_text()))
+    try:
+        from astroquery.vizier import Vizier
+        v = Vizier(columns=["**"], row_limit=-1)
+        a1, a2 = v.get_catalogs("J/ApJS/224/5/table1")[0], v.get_catalogs("J/ApJS/224/5/table2")[0]
+        unit = str(a2["F4.5"].unit or "Jy").lower()
+        to_jy = 1e-3 if "mjy" in unit else 1.0                              # read the unit, do not assume it
+        t1, t2 = a1.to_pandas(), a2.to_pandas()
+        m = t1.merge(t2, on="HOPS")
+        m = m[(m["Class"].astype(str).str.strip() == "0") & (m["F4.5"] > 0) & (m["Ltot"] > 0)]
+        mag = -2.5 * np.log10(m["F4.5"].astype(float) * to_jy / 179.7)      # -> Vega, IRAC 4.5 ZP 179.7 Jy
+        print(f"HOPS F4.5 unit: {unit}; n Class 0 with F4.5 and Ltot: {len(m)}")
+        mn = (mag + 2.5 * np.log10(m["Ltot"].astype(float) / HOPS_L)).values
+        mn = mn[np.isfinite(mn)]
+        assert mn.size >= 20
+    except Exception as e:  # noqa: BLE001  network/format problems fall back to a documented scatter
+        print("HOPS fetch failed, using median +/- 0.8 mag scatter:", str(e)[:120])
+        mn = HOPS_W2 + 0.8 * np.random.default_rng(0).standard_normal(200)
+    f.parent.mkdir(exist_ok=True)
+    f.write_text(json.dumps([round(float(x), 4) for x in mn]))
+    return mn
 
 
 def main() -> None:
@@ -55,13 +88,28 @@ def main() -> None:
            "a45_centre_pct": {p: float(np.percentile(c.a45_centre, p)) for p in (10, 50, 90, 99)},
            "a_v_full_pct": {p: float(np.percentile(c.a45_full / (A45_PER_AK * AK_PER_AV), p)) for p in (10, 50, 90)},
            "per_lum": []}
+    mn = hops_class0_mnorm()
+    rng = np.random.default_rng(8)
+    res["anchor"] = {"n_hops_class0": int(mn.size), "mnorm_median": float(np.median(mn)),
+                     "mnorm_p16_p84": [float(np.percentile(mn, 16)), float(np.percentile(mn, 84))],
+                     "note": "observed HOPS Class 0 [4.5] scaled to 5.5 Lsun: includes Orion envelope, geometry and foreground extinction"}
     for L in LUMS:
         w0 = w2_unextincted(L, c.dist.values)
         w = w0 + c.a45_centre.values
-        # column needed to hide it: A_4.5 >= W2_LIMIT - w0  -> A_V,centre needed
         need = np.clip(W2_LIMIT - w0, 0, None) / (A45_PER_AK * AK_PER_AV)
+        f0, f1 = [], []
+        base0 = w2_unextincted(L, c.dist.values, m_norm=0.0)           # W2 without the anchor term
+        for _ in range(300):
+            # two-level bootstrap: resample the 80-source anchor SET (its own sampling uncertainty), then
+            # take the exact expectation over that set for every clump (no per-clump draw noise)
+            anchor = rng.choice(mn, mn.size)
+            thr0 = W2_LIMIT - base0                                    # per clump: max anchor value that still detects
+            f0.append(float(np.mean([np.mean(anchor <= t) for t in thr0])))
+            f1.append(float(np.mean([np.mean(anchor <= t) for t in thr0 - c.a45_centre.values])))
+        band = lambda a: [float(np.percentile(a, 16)), float(np.percentile(a, 50)), float(np.percentile(a, 84))]  # noqa: E731
         res["per_lum"].append({"L": L, "frac_detectable_no_ext": float(np.mean(w0 <= W2_LIMIT)),
                                "frac_detectable_clump_ext": float(np.mean(w <= W2_LIMIT)),
+                               "band_no_ext": band(f0), "band_clump_ext": band(f1),
                                "w2_med_no_ext": float(np.median(w0)), "w2_med_clump_ext": float(np.median(w)),
                                "a_v_centre_needed_med": float(np.median(need))})
     hist, edges = np.histogram(c.a45_centre, bins=np.linspace(0, 3, 31))

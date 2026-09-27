@@ -86,7 +86,8 @@ header.top .wrap{display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding
 .card .why{font-size:12px;color:var(--muted);min-height:1.3em}
 .pills{display:flex;gap:6px;flex-wrap:wrap}
 .pill{font:600 10px var(--mono);letter-spacing:.05em;text-transform:uppercase;padding:3px 8px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
-.pill.compat{color:var(--good)} .pill.refuted{color:var(--w2)} .pill.control{color:var(--art)}
+.pill.compat{color:var(--good)} .pill.refuted{color:var(--w2)} .pill.control{color:var(--art)} .pill.unver{color:var(--warn)}
+.check .na{color:var(--muted);font-weight:600;font-size:10px}
 .pill.approve{color:var(--bg);background:var(--good);border-color:var(--good)} .pill.refute{color:var(--bg);background:var(--bad);border-color:var(--bad)}
 .pill.unsure{color:var(--bg);background:var(--warn);border-color:var(--warn)} .pill.none{color:var(--muted)}
 .kv{display:flex;gap:12px;flex-wrap:wrap;font:12px var(--mono);color:var(--muted)}
@@ -185,7 +186,7 @@ textarea{min-height:96px;resize:vertical;width:100%}
   <section id="v-gallery">
     <div class="bar">
       <div class="tabs" id="f-arm"></div>
-      <select id="f-verdict" aria-label="Machine verdict"><option value="">Any machine verdict</option><option value="compat">Birth-compatible</option><option value="refuted">Refuted by checks</option></select>
+      <select id="f-verdict" aria-label="Machine verdict"><option value="">Any machine verdict</option><option value="compat">Birth-compatible</option><option value="unver">Unverifiable (archive gap)</option><option value="refuted">Refuted by checks</option></select>
       <select id="f-review" aria-label="Review status"><option value="">Any review status</option><option value="none">Not reviewed</option><option value="approve">Approved</option><option value="refute">Refuted</option><option value="unsure">Unsure</option></select>
       <select id="f-sort" aria-label="Sort"><option value="passes">Sort: checks passed</option><option value="dbic">Sort: rise strength (ΔBIC)</option><option value="onset">Sort: onset year</option><option value="tid">Sort: tid</option></select>
       <input type="search" id="f-q" placeholder="Search designation or tid" aria-label="Search gallery">
@@ -274,9 +275,10 @@ let armF = "on";
 $("#f-arm").innerHTML = [["on", "Candidates"], ["off", "Offset controls"], ["all", "Both"]].map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${v === armF}">${l}</button>`).join("");
 $("#f-arm").onclick = e => { const b = e.target.closest("button"); if (!b) return; armF = b.dataset.v; [...$("#f-arm").children].forEach(x => x.setAttribute("aria-pressed", x === b)); gallery(); };
 ["#f-verdict", "#f-review", "#f-sort", "#f-q"].forEach(s => $(s).addEventListener("input", gallery));
-const vclass = v => v.startsWith("control") ? "control" : v === "birth-compatible" ? "compat" : "refuted";
-const vshort = v => v.startsWith("control") ? "control" : v === "birth-compatible" ? "birth-compatible" : "refuted by checks";
-const firstFail = v => { const m = v.match(/refuted: ([a-z_]+)/); return m ? (CHECK_LABEL[m[1]] || m[1]) : (v === "birth-compatible" ? "passes every check" : ""); };
+const vclass = v => v.startsWith("control") ? "control" : v === "birth-compatible" ? "compat" : v.startsWith("birth-compatible (unverifiable") ? "unver" : "refuted";
+const vshort = v => v.startsWith("control") ? "control" : v === "birth-compatible" ? "birth-compatible" : v.startsWith("birth-compatible (unverifiable") ? "unverifiable" : "refuted by checks";
+const firstFail = v => { const m = v.match(/refuted: ([a-z_]+)/); if (m) return CHECK_LABEL[m[1]] || m[1]; if (v === "birth-compatible") return "passes every check"; const u = v.match(/unverifiable: ([^)]+)/); return u ? "unverifiable: " + u[1].split(", ").map(k => CHECK_LABEL[k] ? k.replace("no_", "") : k).join(", ") : ""; };
+CHECK_LABEL.no_mipsgal = "MIPSGAL 24 µm source present"; CHECK_LABEL.no_simbad_star = "SIMBAD star/YSO present";
 function filtered() { const L = latest(), q = $("#f-q").value.trim().toLowerCase(), fv = $("#f-verdict").value, fr = $("#f-review").value, so = $("#f-sort").value;
   const G = C.gallery.filter(g => (armF === "all" || g.arm === armF) && (!q || g.designation.toLowerCase().includes(q) || String(g.tid) === q)
     && (!fv || vclass(g.machine_verdict) === fv) && (!fr || (fr === "none" ? !L[g.key] : L[g.key]?.decision === fr)));
@@ -388,7 +390,7 @@ function renderDetail(d) {
   </div>
   <aside class="rail">
     <div class="box"><h3>Machine checklist · ${d.checklist.filter(c => c.pass).length}/${d.checklist.length}</h3>
-      <ul class="check">${d.checklist.map(c => `<li><span class="${c.pass ? "ok" : "no"}">${c.pass ? "✓" : "✗"}</span><span>${esc(c.label)}</span></li>`).join("")}</ul>
+      <ul class="check">${d.checklist.map(c => `<li><span class="${c.na ? "na" : c.pass ? "ok" : "no"}">${c.na ? "n/a" : c.pass ? "✓" : "✗"}</span><span>${esc(c.label)}${c.na ? ` <span class="muted">(archive does not cover this position)</span>` : ""}</span></li>`).join("")}</ul>
       <div class="kv"><span>verdict <b>${esc(d.machine_verdict)}</b></span></div></div>
     <form class="box form" id="rv-form"><h3>Your decision</h3>
       <div class="choices" role="radiogroup" aria-label="Decision">

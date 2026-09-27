@@ -320,6 +320,18 @@ def main() -> None:
         f = OUT / f"{extra}.json"
         if f.exists():
             res[extra] = json.loads(f.read_text())
+    na = res.get("negative_audit", {})
+    if "weighted_miss_ub95" in na:
+        # tier-1 screening can only hide rises; bound the population rate of each arm from above by
+        # r + m_ub * (1 - r), and report the range of the difference under the worst asymmetry
+        r2 = res["rates"]["rise2"]
+        m_on, m_off = na["weighted_miss_ub95"]["on"], na["weighted_miss_ub95"]["off"]
+        r_on, r_off = r2["on"], r2["off"]
+        r2["screening"] = {"miss_ub95_on": m_on, "miss_ub95_off": m_off,
+                           "diff_range_adj": [r_on - (r_off + m_off * (1 - r_off)), (r_on + m_on * (1 - r_on)) - r_off]}
+        # verdict rule unchanged (bootstrap LB > 0); screening can only widen the range, so a null stays null
+        res["verdict_note"] = ("screening asymmetry cannot produce a confirmed verdict from a null one here; it widens the "
+                               "range of the true difference to [%.1e, %.1e]" % tuple(r2["screening"]["diff_range_adj"]))
     (OUT / "results.json").write_text(json.dumps(clean(res)))
     print(json.dumps({k: v for k, v in res.items() if k not in ("rises",)}, indent=1, default=str)[:4000])
 

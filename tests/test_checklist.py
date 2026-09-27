@@ -10,7 +10,9 @@ def _detail(**over):
         "arm": "on",
         "forced": {"tier1": {"onset_visit": 10, "post_sig": 12.0, "pre_sig": 0.8},
                    "tier2": {"onset_visit": 10, "post_sig": 12.0, "pre_sig": 0.8}, "confirmed": True},
-        "archive": {"coverage": [200] * 22, "glimpse": [], "spicy": [], "allwise": []},
+        "archive": {"coverage": [200] * 22, "glimpse": [], "spicy": [], "allwise": [], "mipsgal": [],
+                    "simbad": [{"main_id": "HIGALBM G30.0+0.0", "otype": "smm", "sep": 0.1}]},
+        "props": {"glon": 30.0, "glat": 0.2},
         "e1_rows": {"t": [], "snr": [], "sep": []},
         "diff_snr": 9.0, "offset_status": "quiet",
     }
@@ -20,7 +22,7 @@ def _detail(**over):
 
 def test_clean_case_is_birth_compatible():
     items, verdict = checklist(_detail())
-    assert verdict == "birth-compatible" and all(i["pass"] for i in items) and len(items) == 9
+    assert verdict == "birth-compatible" and all(i["pass"] for i in items) and len(items) == 11
 
 
 def test_bright_pre_onset_flux_refutes():
@@ -73,6 +75,27 @@ def test_negative_baseline_refutes():
 def test_gallery_cards_render_checks_out_of_n():
     html = (Path(__file__).parents[1] / "viewer" / "catalog.html").read_text()
     assert "${g.passes}/${g.n_checks}" in html and "${g.passes}/8" not in html
+
+
+def test_mipsgal_and_simbad_star_refute_but_clump_entry_does_not():
+    base = _detail()
+    d = _detail(archive={**base["archive"], "mipsgal": [{"mag_24": 6.4, "sep": 3.4}]})
+    assert "no_mipsgal" in checklist(d)[1]
+    d = _detail(archive={**base["archive"], "simbad": [{"main_id": "SPICY 1", "otype": "Y*?", "sep": 2.0}]})
+    assert "no_simbad_star" in checklist(d)[1]
+    assert checklist(_detail())[1] == "birth-compatible"          # the 'smm' clump entry is ignored
+
+
+def test_uncovered_archive_is_unverifiable_not_pass():
+    d = _detail(props={"glon": 120.0, "glat": 2.5})               # outside every Spitzer plane survey
+    items, verdict = checklist(d)
+    na = [i["id"] for i in items if i["na"]]
+    assert "no_spitzer" in na and "no_mipsgal" in na and verdict.startswith("birth-compatible (unverifiable")
+
+
+def test_tier1_only_twin_is_not_a_pass():
+    _, verdict = checklist(_detail(offset_status="quiet (tier 1 only)"))
+    assert "offset_quiet" in verdict
 
 
 def test_offset_arm_is_labelled_control():

@@ -20,6 +20,7 @@ sys.path.insert(0, str(ROOT / "research"))
 sys.path.insert(0, str(ROOT / "src"))
 
 from e3_vet_candidate import cone, sep  # noqa: E402
+from e7b_symmetric import fisher_one_sided  # noqa: E402
 from report_feasibility import injection_recovery, poisson_ul95  # noqa: E402
 from starbirth.experiments.synthetic_turnon import run_grid  # noqa: E402
 from starbirth.features.turn_on import classify, track  # noqa: E402
@@ -82,6 +83,19 @@ CANDIDATES = [
 
 
 def candidate_block(c: dict) -> dict:
+    """Cached per key: the archival cone queries are the slow part of a rebuild."""
+    f = ROOT / "cache" / "viewer" / "candidates" / f"{c['key']}.json"
+    if f.exists():
+        d = json.loads(f.read_text())
+        d.update({k: c[k] for k in ("verdict", "story", "kind", "name")})   # prose may change without refetch
+        return d
+    d = _candidate_block(c)
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text(json.dumps(d))
+    return d
+
+
+def _candidate_block(c: dict) -> dict:
     ra, dec = c["ra"], c["dec"]
     neo = cone("neowiser_p1bs_psd", "ra, dec, mjd, w1mpro, w1snr, w2mpro, w2sigmpro, w2snr, cc_flags", ra, dec, 60)
     neo["sep"] = sep(neo.ra, neo.dec, ra, dec)
@@ -246,6 +260,48 @@ def literature() -> dict:
     return {"papers": papers, "bursts": bursts, "timescales": timescales}
 
 
+def _stratum_reading(j: dict) -> str:
+    """Data-driven sentence: is the excess in positions that already host a source, or in empty ones?"""
+    st = {s["stratum"]: s for s in j["strata"]}
+    if not {"none", "steady", "variable"} <= st.keys():
+        return ""
+    t2 = j.get("tier2_complete", False)
+    # counts: tier-2 confirmed rises when available, else tier-1 rises (strata store tier1 as [on, off])
+    frac = lambda s, arm: (s[arm][0] if t2 else s["tier1"][0 if arm == "on" else 1]) / max(s[arm][1], 1)  # noqa: E731
+    cnt = lambda s, arm: s[arm][0] if t2 else s["tier1"][0 if arm == "on" else 1]  # noqa: E731
+    hosted = [st["steady"], st["variable"]]
+    exc_hosted = sum(frac(s, "on") for s in hosted) / 2 - sum(frac(s, "off") for s in hosted) / 2
+    n = st["none"]
+    exc_none = frac(n, "on") - frac(n, "off")
+    p_none = n["fisher_p_one_sided"] if t2 else fisher_one_sided(cnt(n, "on"), n["on"][1], cnt(n, "off"), n["off"][1])
+    where = ("confined to positions that already host a catalog source" if exc_hosted > 3 * max(exc_none, 0)
+             else "not confined to positions with a pre-existing source")
+    sig = "no significant excess" if p_none > 0.05 else "a significant excess"
+    return (f" Reading: the excess is {where}; the 'none' stratum, the only place a source could appear from "
+            f"nothing, shows {sig} ({cnt(n, 'on')}/{n['on'][1]} vs {cnt(n, 'off')}/{n['off'][1]}, "
+            f"p = {p_none:.2f}{'' if t2 else ', tier 1'}). "
+            f"Because 'none' carries {100 * n['on'][2] / 19219:.0f}% of the population weight, the weighted "
+            f"difference is driven by it.")
+
+
+def _catalog_reading() -> str:
+    """How many candidates pass the full 8-point archival checklist (from the review catalog, if built)."""
+    f = ROOT / "viewer" / "catalog" / "index.js"
+    if not f.exists():
+        return ""
+    js = json.loads(f.read_text().split("=", 1)[1].rstrip().rstrip(";"))
+    g = [x for x in js["gallery"] if x["arm"] == "on"]
+    ok = [x for x in g if x["machine_verdict"] == "birth-compatible"]
+    top = {}
+    for x in g:
+        if x["machine_verdict"].startswith("refuted"):
+            first = x["machine_verdict"].split(": ")[1].split(", ")[0]
+            top[first] = top.get(first, 0) + 1
+    why = ", ".join(f"{k} {v}" for k, v in sorted(top.items(), key=lambda kv: -kv[1])[:3])
+    return (f" Review catalog: {len(g)} flagged clump positions, {len(ok)} birth-compatible after the 8-point "
+            f"archival checklist; commonest first failure: {why}.")
+
+
 def phases() -> list[dict]:
     """PHASES with E4 filled from its artifact (the log never shows a stale number)."""
     ph = [dict(p) for p in PHASES]
@@ -306,7 +362,7 @@ def phases() -> list[dict]:
     if f7.exists():
         j = json.loads(f7.read_text())
         on, off = j["on"], j["off"]
-        e7["verdict"] = "confirmed" if on["rises"] > max(3 * off["rises"], off["rises"] + 3) else "null"
+        # verdict stays as declared in phases.py ("superseded"): E7's design was refuted by review
         e7["result"] = (f"Threshold delta-BIC >= {j['threshold_dbic']:.0f} (1% false positives on offsets). Rises: "
                         f"{on['rises']} of {on['n']} clump positions vs {off['rises']} of {off['n']} offsets; "
                         f"{on['from_nothing']} clump rises start from no detectable source. By E1 class: "
@@ -331,7 +387,8 @@ def phases() -> list[dict]:
                          f"{1e4 * r1['diff']:.1f}e-4 ({1e4 * r1['diff_ci95'][0]:.1f} to {1e4 * r1['diff_ci95'][1]:.1f}). "
                          + " ".join(f"{s['stratum']}: {s['on'][0]}/{s['on'][1]} vs {s['off'][0]}/{s['off'][1]} "
                                     f"(Fisher p = {s['fisher_p_one_sided']:.3f})." for s in j["strata"])
-                         + f" Clump rises with pre < 3 sigma and post >= 5 sigma (tier 2): {fn}; each is in the review desk.")
+                         + f" Clump rises with pre < 3 sigma and post >= 5 sigma (tier 2): {fn}; each is in the review desk."
+                         + _stratum_reading(j) + _catalog_reading())
         e7b["data"] = j
     f8 = A / "e8" / "extinction_budget.json"
     e8 = next(p for p in ph if p["id"] == "E8")

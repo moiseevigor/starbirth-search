@@ -116,7 +116,7 @@ footer{margin-top:64px;padding-top:18px;border-top:1px solid var(--line);color:v
 .phead .pid{font:800 13px var(--mono);color:var(--bg);background:var(--ink);padding:3px 8px;border-radius:4px}
 .phead .date{font:12px var(--mono);color:var(--muted)}
 .v{display:inline-flex;font:600 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;padding:3px 9px;border-radius:999px;border:1px solid currentColor}
-.v.confirmed{color:var(--good)} .v.refuted{color:var(--w2)} .v.partial{color:var(--warn)} .v.null{color:var(--w1)} .v.pending{color:var(--art)}
+.v.superseded{color:var(--art);text-decoration:line-through} .v.confirmed{color:var(--good)} .v.refuted{color:var(--w2)} .v.partial{color:var(--warn)} .v.null{color:var(--w1)} .v.pending{color:var(--art)}
 .sci{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden}
 @media (max-width:900px){.sci{grid-template-columns:1fr}}
 .sci div{background:var(--panel);padding:12px 14px;display:grid;gap:4px;align-content:start;font-size:14px}
@@ -372,6 +372,33 @@ const FIG = {
       C.forEach((c, i) => Plotly.react(el.querySelector(`.k${i}`), [{ type: "scatter", mode: "markers", x: c.year, y: c.flux, error_y: { type: "data", array: c.err, color: css("--muted"), thickness: 1 }, marker: { size: 6, color: css("--w2") }, hovertemplate: "%{x}: %{y:.0f}<extra></extra>" }],
         base({ showlegend: false, xaxis: ax({ range: [2013.8, 2024.8] }), yaxis: { ...base().yaxis, title: { text: "W2 flux" } }, margin: { l: 56, r: 8, t: 6, b: 30 },
           shapes: [{ type: "line", x0: c.onset_year, x1: c.onset_year, y0: 0, y1: 1, yref: "paper", line: { color: css("--accent"), dash: "dot" } }] }), cfg)); }); },
+  e7b(el) { const P = D.phases.find(p => p.id === "E7b"); const j = P.data;
+    if (!j) { el.innerHTML = `<p class="muted">Running: results appear after the next rebuild.</p>`; return; }
+    el.innerHTML = `<div class="grid2"><div class="card"><h3>Population-weighted rise rate</h3><div class="plot r1" style="min-height:280px"></div><p class="caption">Rises per position (×10⁻⁴) in each arm, weighted by stratum size over all 19,219 positions; error bars: bootstrap 95% interval of the difference, drawn on the clump bar. Tier 1: quality-filtered frames; tier 2: re-measured with mask and uncertainty images.</p></div>
+      <div class="card"><h3>By stratum</h3><div class="plot r2" style="min-height:280px"></div><p class="caption">Fraction of sampled positions with a tier-2 rise, clumps vs offsets, per E1 class stratum (labels: one-sided Fisher p).</p></div>
+      <div class="card"><h3>Injection–recovery on real clump light curves</h3><div class="plot r3" style="min-height:260px"></div><p class="caption">Fraction of injected persistent steps recovered as rises vs injected aperture W2 magnitude (ZP 22.5; brighter to the right), on non-rising clump light curves from the 'none' stratum.</p></div></div>`;
+    draw(null, () => { const R = j.rates;
+      Plotly.react(el.querySelector(".r1"), ["on", "off"].map((arm, i) => ({ type: "bar", name: arm === "on" ? "clumps" : "offsets", x: ["tier 1", "tier 2"], y: ["rise1", "rise2"].map(k => 1e4 * R[k][arm]),
+        marker: { color: css(i ? "--art" : "--accent") }, error_y: arm === "on" ? { type: "data", symmetric: false, array: ["rise1", "rise2"].map(k => 1e4 * (R[k].diff_ci95[1] - R[k].diff)), arrayminus: ["rise1", "rise2"].map(k => 1e4 * (R[k].diff - R[k].diff_ci95[0])), color: css("--ink") } : undefined })),
+        base({ barmode: "group", yaxis: { ...base().yaxis, title: { text: "rises per position (×10⁻⁴)" } } }), cfg);
+      const S = j.strata;
+      Plotly.react(el.querySelector(".r2"), ["on", "off"].map((arm, i) => ({ type: "bar", name: arm === "on" ? "clumps" : "offsets", x: S.map(s => `${s.stratum}<br>p=${s.fisher_p_one_sided.toFixed(3)}`), y: S.map(s => s[arm][0] / Math.max(s[arm][1], 1)),
+        marker: { color: css(i ? "--art" : "--accent") }, text: S.map(s => `${s[arm][0]}/${s[arm][1]}`), textposition: "outside" })),
+        base({ barmode: "group", yaxis: { ...base().yaxis, title: { text: "fraction with tier-2 rise" }, range: [0, 1.3 * Math.max(...S.flatMap(s => [s.on[0] / Math.max(s.on[1], 1), s.off[0] / Math.max(s.off[1], 1)]))] } }), cfg);
+      Plotly.react(el.querySelector(".r3"), [{ type: "scatter", mode: "lines+markers", x: j.injection.map(i => i.mag), y: j.injection.map(i => i.recovered), line: { color: css("--w1"), width: 2.5 }, marker: { size: 8 } }],
+        base({ xaxis: ax({ title: { text: "injected step, aperture W2 (mag)" }, autorange: "reversed" }), yaxis: { ...base().yaxis, title: { text: "fraction recovered" }, range: [0, 1.02] } }), cfg); }); },
+  e8(el) { const P = D.phases.find(p => p.id === "E8"); const j = P.data;
+    if (!j) { el.innerHTML = `<p class="muted">Not run yet.</p>`; return; }
+    el.innerHTML = `<div class="grid2"><div class="card"><h3>Clump extinction at 4.5 µm</h3><div class="plot x1" style="min-height:260px"></div><p class="caption">Distribution of A₄.₅ (mag) seen by a source at the clump centre, from the Hi-GAL surface density (half the beam-averaged column). n = ${fmt(j.n)} prestellar clumps within 4 kpc.</p></div>
+      <div class="card"><h3>Fraction of clumps where a newborn would be detectable</h3><div class="plot x2" style="min-height:260px"></div><p class="caption">Fraction (%) of clumps in which a Class-0-like source of the given luminosity (L☉) would reach the NEOWISE limit W2 = 14.3: with zero extinction (distance only) and after the clump's own extinction.</p></div></div>`;
+    draw(null, () => { const H = j.a45_hist, xs = H.edges.slice(0, -1).map((e, i) => (e + H.edges[i + 1]) / 2);
+      Plotly.react(el.querySelector(".x1"), [{ type: "bar", x: xs, y: H.counts, marker: { color: css("--accent") }, hovertemplate: "A₄.₅ %{x:.2f}: %{y} clumps<extra></extra>" }],
+        base({ xaxis: ax({ title: { text: "A₄.₅ at clump centre (mag)" } }), yaxis: { ...base().yaxis, title: { text: "clumps" }, type: "log" }, showlegend: false }), cfg);
+      const P = j.per_lum;
+      Plotly.react(el.querySelector(".x2"), [{ type: "bar", name: "distance only (no extinction)", x: P.map(p => `${p.L} L☉`), y: P.map(p => 100 * p.frac_detectable_no_ext), marker: { color: css("--w1") } },
+        { type: "bar", name: "with clump extinction", x: P.map(p => `${p.L} L☉`), y: P.map(p => 100 * p.frac_detectable_clump_ext), marker: { color: css("--w2") } }],
+        base({ barmode: "group", yaxis: { ...base().yaxis, title: { text: "clumps where W2 ≤ 14.3 (%)" }, range: [0, 100] }, shapes: [{ type: "line", xref: "paper", x0: 0, x1: 1, y0: 26, y1: 26, line: { color: css("--muted"), dash: "dot" } }],
+          annotations: [{ xref: "paper", x: 0.02, y: 26, text: "E−1B: 26% of youngest protostellar clumps seen", showarrow: false, yshift: 10, font: { size: 10, color: css("--muted") }, xanchor: "left" }] }), cfg); }); },
   e4(el) { const P = D.phases.find(p => p.id === "E4"); const j = P.data;
     if (!j) { el.innerHTML = `<p class="muted">Not run yet.</p>`; return; }
     el.innerHTML = `<div class="card"><div class="plot" style="min-height:300px"></div><p class="caption">Burst interval (years, log scale). Top row: this search, τ = N_eff × Δt × completeness / k with an exact 95% Poisson interval (k = ${j.k}, N_eff = ${j.on.n_eff} SPICY hosts not steadily seen by NEOWISE, Δt = ${j.dt_eff_yr} yr). Other rows: published intervals.</p></div>`;

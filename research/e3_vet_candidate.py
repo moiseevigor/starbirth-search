@@ -48,6 +48,15 @@ def sep(ra, dec, ra0, dec0):
 FILES = ("neowise_60arcsec", "lightcurve", "allwise", "allwise_mep", "glimpse", "mipsgal", "spicy", "simbad")
 
 
+def with_sep(d: pd.DataFrame, ra: float, dec: float) -> pd.DataFrame:
+    """Add the separation (arcsec) from the target to any table with ra/dec; error rows are left untouched."""
+    if d is None or d.empty or "ra" not in d or "dec" not in d:
+        return d
+    d = d.copy()
+    d["sep"] = sep(d.ra.astype(float), d.dec.astype(float), ra, dec)
+    return d
+
+
 def archive(name: str, ra: float, dec: float) -> dict[str, pd.DataFrame]:
     """Archival history of any position (cached in artifacts/e3_vet/<name>/)."""
     out = ROOT / "artifacts" / "e3_vet" / name
@@ -56,9 +65,10 @@ def archive(name: str, ra: float, dec: float) -> dict[str, pd.DataFrame]:
             all((out / f"{f}.csv").exists() for f in FILES):
         def rd(f):
             try:
-                return pd.read_csv(out / f"{f}.csv", index_col=0 if f == "lightcurve" else None)
+                d = pd.read_csv(out / f"{f}.csv", index_col=0 if f == "lightcurve" else None)
             except pd.errors.EmptyDataError:
                 return pd.DataFrame()
+            return with_sep(d, ra, dec) if f == "simbad" else d
         return {f: rd(f) for f in FILES}
     out.mkdir(parents=True, exist_ok=True)
     neo = cone("neowiser_p1bs_psd", "ra, dec, mjd, w1mpro, w1sigmpro, w1snr, w2mpro, w2sigmpro, w2snr, cc_flags",
@@ -88,7 +98,8 @@ def archive(name: str, ra: float, dec: float) -> dict[str, pd.DataFrame]:
     try:
         sb = tap(SIMBAD, f"SELECT main_id, otype, ra, dec FROM basic WHERE 1=CONTAINS(POINT('ICRS', ra, dec), "
                          f"CIRCLE('ICRS', {ra}, {dec}, {10 / 3600:.8f}))")
-    except Exception as e:  # noqa: BLE001  SIMBAD outage must not kill the vet
+        sb = with_sep(sb, ra, dec)
+    except Exception as e:  # noqa: BLE001  an outage is recorded as an error row (consumers treat it as unavailable)
         sb = pd.DataFrame({"error": [str(e)[:200]]})
     res = {"neowise_60arcsec": neo, "lightcurve": lc, "allwise": aw, "allwise_mep": mep, "glimpse": gl,
            "mipsgal": mg, "spicy": sp, "simbad": sb}

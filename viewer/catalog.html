@@ -72,6 +72,11 @@ header.top .wrap{display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding
 .bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-block:18px}
 /* gallery */
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.ghead{grid-column:1/-1;display:flex;gap:12px;align-items:baseline;border-bottom:1px solid var(--line);padding:18px 0 6px;margin-top:6px}
+.ghead h2{font-size:17px} .ghead .n{font:500 12px var(--mono);color:var(--muted)}
+.ghead .desc{font-size:12px;color:var(--muted);margin-left:auto;text-align:right;max-width:52ch}
+.card .feat{display:flex;gap:6px;flex-wrap:wrap}
+.card .feat span{font:500 10px var(--mono);border:1px solid var(--line);border-radius:4px;padding:1px 5px;color:var(--muted)}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden;display:grid;cursor:pointer;text-align:left;padding:0;color:inherit;font:inherit;
   transition:transform .3s var(--ease),box-shadow .3s var(--ease),border-color .3s var(--ease);animation:rise .5s var(--ease) both;animation-delay:calc(var(--i) * 28ms)}
 .card:hover{transform:translateY(-2px);box-shadow:var(--shadow);border-color:var(--muted)}
@@ -188,7 +193,9 @@ textarea{min-height:96px;resize:vertical;width:100%}
       <div class="tabs" id="f-arm"></div>
       <select id="f-verdict" aria-label="Machine verdict"><option value="">Any machine verdict</option><option value="compat">Birth-compatible</option><option value="unver">Unverifiable (archive gap)</option><option value="refuted">Refuted by checks</option></select>
       <select id="f-review" aria-label="Review status"><option value="">Any review status</option><option value="none">Not reviewed</option><option value="approve">Approved</option><option value="refute">Refuted</option><option value="unsure">Unsure</option></select>
-      <select id="f-sort" aria-label="Sort"><option value="passes">Sort: checks passed</option><option value="dbic">Sort: rise strength (ΔBIC)</option><option value="onset">Sort: onset year</option><option value="tid">Sort: tid</option></select>
+      <select id="f-sort" aria-label="Sort"><option value="dbic">Sort: rise strength (ΔBIC)</option><option value="amp">Sort: amplitude (mag)</option><option value="passes">Sort: checks passed</option><option value="onset">Sort: onset year</option><option value="tid">Sort: tid</option></select>
+      <select id="f-primary" aria-label="Primary feature"><option value="">Any primary feature</option></select>
+      <select id="f-group" aria-label="Group by"><option value="primary">Group: primary feature</option><option value="shape">Group: light-curve shape</option><option value="counterpart">Group: counterpart</option><option value="none">No grouping</option></select>
       <input type="search" id="f-q" placeholder="Search designation or tid" aria-label="Search gallery">
       <button type="button" id="btn-next" class="primary">Review next unreviewed</button>
     </div>
@@ -241,6 +248,7 @@ function base(extra = {}) { const m = css("--muted"), l = css("--line");
   return Object.assign({ paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)", font: { color: css("--ink"), family: "IBM Plex Sans", size: 12 },
     margin: { l: 56, r: 12, t: 8, b: 44 }, xaxis: { ...ax }, yaxis: { ...ax }, legend: { orientation: "h", y: 1.15, x: 0, font: { color: m, size: 11 } } }, extra); }
 const ax = o => Object.assign({ ...base().xaxis }, o);
+const PRIMARY_DESC = { appearance: "a rise from a baseline consistent with zero: the only class where a birth could hide", outburst: "brightening by 2 mag or more, FUor/EXor-like", brightening: "0.5-2 mag brightening of an existing source", fade: "persistent drop of 0.5 mag or more", dip: "temporary drop that recovers (extinction event or eclipse)", flare: "brief rise that returns to the pre-level", "slow ramp": "rise spread over 3 or more visits", "unusable baseline": "pre-onset flux below -3 sigma: sky-model failure", weak: "significant step below 0.5 mag" };
 const CHECK_LABEL = { covered_pre: "not imaged before onset", pre_quiet: "source already in aperture", no_catalog_pre: "catalogued before onset", no_spitzer: "Spitzer source present",
   no_allwise: "AllWISE source present", tier2_rise: "rise not confirmed at tier 2", post_signif: "post-onset flux weak", diff_source: "no difference-image source", offset_quiet: "offset twin not quiet" };
 
@@ -274,26 +282,36 @@ function facts() { const L = latest(), G = C.gallery, on = G.filter(g => g.arm =
 let armF = "on";
 $("#f-arm").innerHTML = [["on", "Candidates"], ["off", "Offset controls"], ["all", "Both"]].map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${v === armF}">${l}</button>`).join("");
 $("#f-arm").onclick = e => { const b = e.target.closest("button"); if (!b) return; armF = b.dataset.v; [...$("#f-arm").children].forEach(x => x.setAttribute("aria-pressed", x === b)); gallery(); };
-["#f-verdict", "#f-review", "#f-sort", "#f-q"].forEach(s => $(s).addEventListener("input", gallery));
+["#f-verdict", "#f-review", "#f-sort", "#f-q", "#f-primary", "#f-group"].forEach(s => $(s).addEventListener("input", gallery));
+[...new Set(C.gallery.map(g => g.primary).filter(Boolean))].sort().forEach(p => $("#f-primary").insertAdjacentHTML("beforeend", `<option value="${esc(p)}">${esc(p)}</option>`));
 const vclass = v => v.startsWith("control") ? "control" : v === "birth-compatible" ? "compat" : v.startsWith("birth-compatible (unverifiable") ? "unver" : "refuted";
 const vshort = v => v.startsWith("control") ? "control" : v === "birth-compatible" ? "birth-compatible" : v.startsWith("birth-compatible (unverifiable") ? "unverifiable" : "refuted by checks";
 const firstFail = v => { const m = v.match(/refuted: ([a-z_]+)/); if (m) return CHECK_LABEL[m[1]] || m[1]; if (v === "birth-compatible") return "passes every check"; const u = v.match(/unverifiable: ([^)]+)/); return u ? "unverifiable: " + u[1].split(", ").map(k => CHECK_LABEL[k] ? k.replace("no_", "") : k).join(", ") : ""; };
 CHECK_LABEL.no_mipsgal = "MIPSGAL 24 µm source present"; CHECK_LABEL.no_simbad_star = "SIMBAD star/YSO present";
 function filtered() { const L = latest(), q = $("#f-q").value.trim().toLowerCase(), fv = $("#f-verdict").value, fr = $("#f-review").value, so = $("#f-sort").value;
+  const fp = $("#f-primary").value, by = $("#f-group").value;
   const G = C.gallery.filter(g => (armF === "all" || g.arm === armF) && (!q || g.designation.toLowerCase().includes(q) || String(g.tid) === q)
-    && (!fv || vclass(g.machine_verdict) === fv) && (!fr || (fr === "none" ? !L[g.key] : L[g.key]?.decision === fr)));
-  const key = { passes: g => -g.passes, dbic: g => -(g.dbic ?? 0), onset: g => g.onset_year ?? 9999, tid: g => g.tid }[so];
-  return G.sort((a, b) => key(a) - key(b)); }
-function gallery() { const L = latest(), G = filtered();
-  $("#gallery").innerHTML = G.map((g, i) => { const r = L[g.key], n = g.n_epochs || 1;
+    && (!fv || vclass(g.machine_verdict) === fv) && (!fr || (fr === "none" ? !L[g.key] : L[g.key]?.decision === fr)) && (!fp || g.primary === fp));
+  const key = { passes: g => -g.passes, dbic: g => -(g.dbic ?? 0), onset: g => g.onset_year ?? 9999, tid: g => g.tid, amp: g => (g.amp_mag ?? 99) }[so];
+  const order = ["appearance", "outburst", "brightening", "fade", "dip", "flare", "slow ramp", "weak", "unusable baseline"];
+  const gk = g => by === "none" ? 0 : (by === "primary" ? (order.indexOf(g.primary) + 1 || 99) : groupKey(g, by));
+  return G.sort((a, b) => (gk(a) > gk(b) ? 1 : gk(a) < gk(b) ? -1 : 0) || key(a) - key(b)); }
+const groupKey = (g, by) => by === "primary" ? (g.primary || "not classified") : by === "shape" ? (g.shape || "n/a") : by === "counterpart" ? (g.counterpart || "none") : "";
+function gallery() { const L = latest(), G = filtered(), by = $("#f-group").value; let last = null, html = "";
+  G.forEach((g, i) => { const k = groupKey(g, by);
+    if (by !== "none" && k !== last) { last = k; const n = G.filter(x => groupKey(x, by) === k).length;
+      html += `<div class="ghead"><h2>${esc(k)}</h2><span class="n">${n}</span><span class="desc">${esc(PRIMARY_DESC[k] || "")}</span></div>`; }
+    html += card(g, i, L[g.key]); });
+  $("#gallery").innerHTML = html || `<div class="empty"><b>Nothing matches these filters</b><span>Widen the machine-verdict or review-status filter, or clear the search.</span></div>`;
+  facts(); }
+function card(g, i, r) { const n = g.n_epochs || 1;
     const bg = kind => g.thumb ? `background-image:url(img/${g.key}/neowise_${kind}.png);background-size:${n * 100}% 100%;background-position:100% 0` : "";
     return `<button class="card ${r ? "done " + r.decision : ""}" type="button" data-key="${g.key}" style="--i:${i}"><div class="thumb"><div style="${bg("stack")}"></div><div style="${bg("diff")}"></div><span class="yr">2024</span></div>
       <div class="body"><span class="t">${esc(g.designation)}${g.arm === "off" ? " +60″" : ""}</span>
       <div class="pills"><span class="pill ${vclass(g.machine_verdict)}">${vshort(g.machine_verdict)}</span><span class="pill ${r ? r.decision : "none"}">${r ? r.decision : "not reviewed"}</span></div>
+      <div class="feat">${g.primary ? `<span>${esc(g.primary)}</span>` : ""}${g.amp_mag != null ? `<span>Δm ${g.amp_mag > 0 ? "+" : ""}${g.amp_mag}</span>` : ""}${g.shape ? `<span>${esc(g.shape)}</span>` : ""}${g.d_w1w2 != null ? `<span>Δ(W1−W2) ${g.d_w1w2 > 0 ? "+" : ""}${g.d_w1w2}</span>` : ""}${g.counterpart ? `<span>${esc(g.counterpart)}</span>` : ""}</div>
       <div class="why">${esc(firstFail(g.machine_verdict))}</div>
-      <div class="kv"><span>tid <b>${g.tid}</b></span><span>ΔBIC <b>${g.dbic ? Math.round(g.dbic).toLocaleString("en-US") : "–"}</b></span><span>onset <b>${g.onset_year ?? "–"}</b></span><span>checks <b>${g.passes}/${g.n_checks}</b></span></div></div></button>`; }).join("")
-    || `<div class="empty"><b>Nothing matches these filters</b><span>Widen the machine-verdict or review-status filter, or clear the search.</span></div>`;
-  facts(); }
+      <div class="kv"><span>tid <b>${g.tid}</b></span><span>ΔBIC <b>${g.dbic ? Math.round(g.dbic).toLocaleString("en-US") : "–"}</b></span><span>onset <b>${g.onset_year ?? "–"}</b></span><span>checks <b>${g.passes}/${g.n_checks}</b></span></div></div></button>`; }
 $("#gallery").onclick = e => { const b = e.target.closest(".card"); if (b) openDetail(b.dataset.key, filtered().map(g => g.key)); };
 function nextUnreviewed(from) { const L = latest(), list = filtered().map(g => g.key); const start = from ? list.indexOf(from) + 1 : 0;
   for (let k = 0; k < list.length; k++) { const key = list[(start + k) % list.length]; if (!L[key]) return { key, list }; } return null; }

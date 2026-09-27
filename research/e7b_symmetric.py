@@ -327,11 +327,31 @@ def main() -> None:
         r2 = res["rates"]["rise2"]
         m_on, m_off = na["weighted_miss_ub95"]["on"], na["weighted_miss_ub95"]["off"]
         r_on, r_off = r2["on"], r2["off"]
-        r2["screening"] = {"miss_ub95_on": m_on, "miss_ub95_off": m_off,
-                           "diff_range_adj": [r_on - (r_off + m_off * (1 - r_off)), (r_on + m_on * (1 - r_on)) - r_off]}
-        # verdict rule unchanged (bootstrap LB > 0); screening can only widen the range, so a null stays null
-        res["verdict_note"] = ("screening asymmetry cannot produce a confirmed verdict from a null one here; it widens the "
-                               "range of the true difference to [%.1e, %.1e]" % tuple(r2["screening"]["diff_range_adj"]))
+        # (a) conditional worst-case envelope: point rates pushed by the marginal 95% miss-rate upper bounds.
+        #     This is a sensitivity envelope, NOT a 95% bound on the true difference.
+        env = [r_on - (r_off + m_off * (1 - r_off)), (r_on + m_on * (1 - r_on)) - r_off]
+        # (b) one combined 95% interval: jointly resample the stratified rates (bootstrap of the design) and the
+        #     per-cell miss rates (Beta(k + 1/2, n - k + 1/2), Jeffreys) and adjust each replicate's arm rates.
+        cells = na["cells"]
+        rng2 = np.random.default_rng(90)
+        comb = []
+        for _ in range(2000):
+            b = pd.concat([g.sample(len(g), replace=True, random_state=int(rng2.integers(1e9)))
+                           for _, g in d.groupby(["arm", "stratum"])])
+            adj = {}
+            for arm in ("on", "off"):
+                miss = {c["stratum"]: rng2.beta(c["k"] + 0.5, c["n"] - c["k"] + 0.5) for c in cells if c["arm"] == arm}
+                ga = b[b.arm == arm]
+                tot = sum((gg.rise2.mean() + miss[st] * (1 - gg.rise2.mean())) * gg.N_stratum.iloc[0]
+                          for st, gg in ga.groupby("stratum"))
+                adj[arm] = tot / ga.N_arm.iloc[0]
+            comb.append(adj["on"] - adj["off"])
+        r2["screening"] = {"miss_ub95_on": m_on, "miss_ub95_off": m_off, "envelope_worst_case": env,
+                           "diff_ci95_with_screening": [float(np.percentile(comb, 2.5)), float(np.percentile(comb, 97.5))]}
+        ci, en = r2["screening"]["diff_ci95_with_screening"], env
+        res["verdict_note"] = (f"the combined 95% interval of the difference, jointly resampling the stratified rates and "
+                               f"the per-cell tier-1 miss rates, is [{ci[0]:.1e}, {ci[1]:.1e}]; the worst-case envelope "
+                               f"[{en[0]:.1e}, {en[1]:.1e}] is a sensitivity bound, not a coverage statement")
     (OUT / "results.json").write_text(json.dumps(clean(res)))
     print(json.dumps({k: v for k, v in res.items() if k not in ("rises",)}, indent=1, default=str)[:4000])
 

@@ -101,3 +101,33 @@ def test_tier1_only_twin_is_not_a_pass():
 def test_offset_arm_is_labelled_control():
     _, verdict = checklist(_detail(arm="off"))
     assert verdict.startswith("control:")
+
+
+def test_simbad_veto_needs_separations_and_fires_inside_aperture():
+    base = _detail()
+    # a stellar SIMBAD object inside the aperture refutes
+    d = _detail(archive={**base["archive"], "simbad": [{"main_id": "2MASS J1", "otype": "Y*O", "sep": 4.9}]})
+    assert "no_simbad_star" in checklist(d)[1]
+    # rows without a separation (the old serialiser) or an error row make the check unavailable, never a pass
+    d = _detail(archive={**base["archive"], "simbad": [{"main_id": "2MASS J1", "otype": "Y*O"}]})
+    items, _ = checklist(d)
+    assert next(i for i in items if i["id"] == "no_simbad_star")["na"]
+    d = _detail(archive={**base["archive"], "simbad": [{"error": "timeout"}]})
+    items, _ = checklist(d)
+    assert next(i for i in items if i["id"] == "no_simbad_star")["na"]
+
+
+def test_archive_loader_adds_simbad_separation():
+    import pandas as pd
+    from e3_vet_candidate import with_sep
+    d = with_sep(pd.DataFrame({"main_id": ["x"], "otype": ["Y*O"], "ra": [10.0 + 2.0 / 3600], "dec": [0.0]}), 10.0, 0.0)
+    assert abs(d.sep.iloc[0] - 2.0) < 0.01
+    assert with_sep(pd.DataFrame({"error": ["timeout"]}), 10.0, 0.0).shape == (1, 1)
+
+
+def test_zero_separation_counts_as_a_match_and_clump_entries_are_ignored():
+    base = _detail()
+    d = _detail(archive={**base["archive"], "glimpse": [{"mag4_5": 12.0, "sep": 0.0}]})
+    assert "no_spitzer" in checklist(d)[1]                       # 0.0" is inside the aperture
+    d = _detail(archive={**base["archive"], "simbad": [{"main_id": "AGAL G345.084-00.614", "otype": "Y*O", "sep": 0.0}]})
+    assert checklist(d)[1] == "birth-compatible"                 # the ATLASGAL clump entry is the clump itself

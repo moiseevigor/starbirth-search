@@ -38,7 +38,8 @@ NH_PER_AV = 1.87e21         # cm^-2 mag^-1
 AK_PER_AV = 0.112
 A45_PER_AK = 0.43
 W2_LIMIT = 14.3
-HOPS_W2, HOPS_L, HOPS_D = 12.16, 5.5, 0.42
+HOPS_L, HOPS_D = 5.5, 0.42          # anchor magnitude comes from data/hops_class0_mnorm.json, not a constant
+HOPS_W2 = 12.16                      # only a documentation value (Furlan+2016 median); never used for results
 LUMS = [1.0, 5.0, 25.0, 100.0]
 
 
@@ -48,35 +49,53 @@ def a45_from_sigma(sigma_g_cm2: np.ndarray) -> np.ndarray:
     return A45_PER_AK * AK_PER_AV * a_v
 
 
-def w2_unextincted(lum: float, d_kpc: np.ndarray, m_norm: float = HOPS_W2) -> np.ndarray:
+def w2_unextincted(lum: float, d_kpc: np.ndarray, m_norm: float) -> np.ndarray:
     return m_norm - 2.5 * np.log10(lum / HOPS_L) + 5 * np.log10(d_kpc / HOPS_D)
 
 
+ANCHOR = ROOT / "data" / "hops_class0_mnorm.json"      # checked in, with provenance
+
+
 def hops_class0_mnorm() -> np.ndarray:
-    """Luminosity-normalised observed [4.5] (Vega) of HOPS Class 0 sources; cached; fallback = median + 0.8 mag scatter."""
-    f = ROOT / "cache" / "hops_class0_mnorm.json"
-    if f.exists():
-        return np.array(json.loads(f.read_text()))
-    try:
-        from astroquery.vizier import Vizier
-        v = Vizier(columns=["**"], row_limit=-1)
-        a1, a2 = v.get_catalogs("J/ApJS/224/5/table1")[0], v.get_catalogs("J/ApJS/224/5/table2")[0]
-        unit = str(a2["F4.5"].unit or "Jy").lower()
-        to_jy = 1e-3 if "mjy" in unit else 1.0                              # read the unit, do not assume it
-        t1, t2 = a1.to_pandas(), a2.to_pandas()
-        m = t1.merge(t2, on="HOPS")
-        m = m[(m["Class"].astype(str).str.strip() == "0") & (m["F4.5"] > 0) & (m["Ltot"] > 0)]
-        mag = -2.5 * np.log10(m["F4.5"].astype(float) * to_jy / 179.7)      # -> Vega, IRAC 4.5 ZP 179.7 Jy
-        print(f"HOPS F4.5 unit: {unit}; n Class 0 with F4.5 and Ltot: {len(m)}")
-        mn = (mag + 2.5 * np.log10(m["Ltot"].astype(float) / HOPS_L)).values
-        mn = mn[np.isfinite(mn)]
-        assert mn.size >= 20
-    except Exception as e:  # noqa: BLE001  network/format problems fall back to a documented scatter
-        print("HOPS fetch failed, using median +/- 0.8 mag scatter:", str(e)[:120])
-        mn = HOPS_W2 + 0.8 * np.random.default_rng(0).standard_normal(200)
-    f.parent.mkdir(exist_ok=True)
-    f.write_text(json.dumps([round(float(x), 4) for x in mn]))
-    return mn
+    """Luminosity-normalised observed [4.5] (Vega) of HOPS Class 0 sources.
+
+    Reads the checked-in, provenance-bearing input data/hops_class0_mnorm.json. If it is absent, fetches VizieR
+    J/ApJS/224/5 once, validates it (unit read from the table, >= 50 rows, median within 10-15 mag) and writes the
+    file with source, date, unit, row counts and a checksum. Any failure raises: there is no synthetic fallback.
+    """
+    import hashlib
+    from datetime import date
+    if ANCHOR.exists():
+        j = json.loads(ANCHOR.read_text())
+        vals = np.array(j["mnorm"], float)
+        assert j["source"].startswith("VizieR J/ApJS/224/5"), "anchor file is not the VizieR HOPS table"
+        assert hashlib.sha256(json.dumps(j["mnorm"]).encode()).hexdigest() == j["sha256"], "anchor checksum mismatch"
+        return vals
+    from astroquery.vizier import Vizier
+    v = Vizier(columns=["**"], row_limit=-1)
+    a1, a2 = v.get_catalogs("J/ApJS/224/5/table1")[0], v.get_catalogs("J/ApJS/224/5/table2")[0]
+    unit = str(a2["F4.5"].unit or "").lower()
+    if unit not in ("jy", "mjy"):
+        raise RuntimeError(f"unexpected F4.5 unit {unit!r} in J/ApJS/224/5/table2")
+    to_jy = 1e-3 if unit == "mjy" else 1.0
+    t1, t2 = a1.to_pandas(), a2.to_pandas()
+    m = t1.merge(t2, on="HOPS")
+    n_class0 = int((m["Class"].astype(str).str.strip() == "0").sum())
+    m = m[(m["Class"].astype(str).str.strip() == "0") & (m["F4.5"] > 0) & (m["Ltot"] > 0)]
+    mag = -2.5 * np.log10(m["F4.5"].astype(float) * to_jy / 179.7)          # Vega, IRAC 4.5 ZP 179.7 Jy
+    mn = (mag + 2.5 * np.log10(m["Ltot"].astype(float) / HOPS_L)).values
+    mn = np.round(mn[np.isfinite(mn)], 4)
+    if mn.size < 50 or not (10 <= np.median(mn) <= 15):
+        raise RuntimeError(f"HOPS anchor failed validation: n={mn.size}, median={np.median(mn):.2f}")
+    vals = [float(x) for x in mn]
+    j = {"source": "VizieR J/ApJS/224/5 (Furlan+2016) table1 x table2", "retrieved": str(date.today()),
+         "f45_unit": unit, "irac45_zeropoint_jy": 179.7, "normalised_to_lsun": HOPS_L,
+         "n_class0_total": n_class0, "n_used": int(mn.size),
+         "definition": "[4.5]_Vega + 2.5 log10(Ltot / 5.5 Lsun) for HOPS Class 0 sources with F4.5 > 0 and Ltot > 0",
+         "mnorm": vals, "sha256": hashlib.sha256(json.dumps(vals).encode()).hexdigest()}
+    ANCHOR.parent.mkdir(exist_ok=True)
+    ANCHOR.write_text(json.dumps(j))
+    return np.array(vals)
 
 
 def main() -> None:
@@ -90,11 +109,14 @@ def main() -> None:
            "per_lum": []}
     mn = hops_class0_mnorm()
     rng = np.random.default_rng(8)
+    prov = json.loads(ANCHOR.read_text())
     res["anchor"] = {"n_hops_class0": int(mn.size), "mnorm_median": float(np.median(mn)),
+                     "source": prov["source"], "retrieved": prov["retrieved"], "f45_unit": prov["f45_unit"],
                      "mnorm_p16_p84": [float(np.percentile(mn, 16)), float(np.percentile(mn, 84))],
                      "note": "observed HOPS Class 0 [4.5] scaled to 5.5 Lsun: includes Orion envelope, geometry and foreground extinction"}
     for L in LUMS:
-        w0 = w2_unextincted(L, c.dist.values)
+        # point estimates from the empirical anchor median (never the old hard-coded 12.16)
+        w0 = w2_unextincted(L, c.dist.values, m_norm=float(np.median(mn)))
         w = w0 + c.a45_centre.values
         need = np.clip(W2_LIMIT - w0, 0, None) / (A45_PER_AK * AK_PER_AV)
         f0, f1 = [], []
@@ -107,9 +129,9 @@ def main() -> None:
             f0.append(float(np.mean([np.mean(anchor <= t) for t in thr0])))
             f1.append(float(np.mean([np.mean(anchor <= t) for t in thr0 - c.a45_centre.values])))
         band = lambda a: [float(np.percentile(a, 16)), float(np.percentile(a, 50)), float(np.percentile(a, 84))]  # noqa: E731
-        res["per_lum"].append({"L": L, "frac_detectable_no_ext": float(np.mean(w0 <= W2_LIMIT)),
-                               "frac_detectable_clump_ext": float(np.mean(w <= W2_LIMIT)),
-                               "band_no_ext": band(f0), "band_clump_ext": band(f1),
+        b0, b1 = band(f0), band(f1)
+        res["per_lum"].append({"L": L, "frac_detectable_no_ext": b0[1], "frac_detectable_clump_ext": b1[1],
+                               "band_no_ext": b0, "band_clump_ext": b1,
                                "w2_med_no_ext": float(np.median(w0)), "w2_med_clump_ext": float(np.median(w)),
                                "a_v_centre_needed_med": float(np.median(need))})
     hist, edges = np.histogram(c.a45_centre, bins=np.linspace(0, 3, 31))

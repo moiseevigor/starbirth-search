@@ -62,6 +62,8 @@ def mipsgal_covered(l: float, b: float) -> bool:
 
 STELLAR_OTYPES = ("*", "IR", "NIR", "MIR", "YSO", "Y*", "TT", "Or", "Em", "FU", "V*", "Ae")
 NONSTELLAR_OTYPES = {"smm", "cor", "MoC", "DNe", "HII", "Cld", "Rad", "mm", "cm", "PoC", "GNe", "RNe", "ISM", "bub", "sh"}
+# sub-mm / far-IR CLUMP catalogues that SIMBAD often types as 'Y*O': they are the clump itself, not a prior star
+CLUMP_ID_PREFIXES = ("AGAL ", "HIGALBM", "[MML2017]", "ATLASGAL", "BGPS", "JCMTSF", "[EMM2017]", "[EMM2021]", "GRS ", "MSXDC")
 
 
 def simbad_stellar(rows: list[dict]) -> list[dict]:
@@ -69,11 +71,30 @@ def simbad_stellar(rows: list[dict]) -> list[dict]:
     out = []
     for r in rows or []:
         ot = str(r.get("otype") or "")
-        if not ot or ot in NONSTELLAR_OTYPES or "error" in r:
+        if not ot or ot in NONSTELLAR_OTYPES or ("error" in r and r.get("error")):
+            continue
+        if str(r.get("main_id") or "").startswith(CLUMP_ID_PREFIXES):
             continue
         if any(tok in ot for tok in STELLAR_OTYPES):
             out.append(r)
     return out
+
+
+def counterpart(ar: dict) -> str:
+    """Most informative prior counterpart within the aperture: SPICY class > MIPSGAL 24um > AllWISE > SIMBAD star > none."""
+    w = lambda rows: [r for r in rows or [] if (r.get("sep") if r.get("sep") is not None else 99) <= R_MATCH]  # noqa: E731
+    sp = w(ar.get("spicy"))
+    if sp:
+        return f"SPICY {sp[0].get('class', '?')}"
+    if w(ar.get("mipsgal")):
+        return "MIPSGAL 24 um source"
+    if w(ar.get("allwise")):
+        return "AllWISE 2010 source"
+    if w(simbad_stellar(ar.get("simbad", []))):
+        return "SIMBAD star/YSO"
+    if w(ar.get("glimpse")):
+        return "GLIMPSE source"
+    return "none"
 
 
 def checklist(det: dict) -> tuple[list[dict], str]:
@@ -90,13 +111,17 @@ def checklist(det: dict) -> tuple[list[dict], str]:
     # "was there a source before?" test uses that radius, not the 3" association radius
     pre_cat = [1 for t, snr, sp in zip(e1["t"], e1["snr"], e1["sep"])
                if onset is not None and t < 2013.95 + onset * 0.5 and (snr or 0) >= 5 and sp <= R_MATCH]
-    within = lambda rows: [r for r in rows if (r.get("sep") or 99) <= R_MATCH]  # noqa: E731
+    # a separation of exactly 0.0 is a real match, so test for None rather than falsiness
+    within = lambda rows: [r for r in rows if (r.get("sep") if r.get("sep") is not None else 99) <= R_MATCH]  # noqa: E731
     pre_sig = s.get("pre_sig")
     P = det.get("props", {})
     l, b = P.get("glon"), P.get("glat")
     sp_cov = spitzer_covered(l, b) if l is not None and b is not None else False
     mg_cov = mipsgal_covered(l, b) if l is not None and b is not None else False
-    sb_ok = not (ar.get("simbad") and "error" in ar["simbad"][0])
+    sb_rows = ar.get("simbad")
+    # SIMBAD evidence is usable only if the query succeeded (no error row) and every row carries a separation
+    sb_ok = sb_rows is not None and not any("error" in r and r.get("error") for r in sb_rows) and \
+        all(r.get("sep") is not None for r in sb_rows)
     NA = object()
     items = [
         ("covered_pre", "Position imaged before onset (field detections within 60\" in >= 80% of pre-onset visits)",
@@ -179,6 +204,13 @@ def detail(c: dict, rows: dict, rises: dict, props: pd.DataFrame) -> dict:
     lc = ar["lightcurve"]
     rec = lambda d, cols: [] if d is None or d.empty else d[[x for x in cols if x in d]].round(3).to_dict("records")  # noqa: E731
     r = rises.get((arm, tid), {})
+    if not r:                                              # classified event without an E7b rise record (fade, ramp, extended)
+        e = events_by_key().get(key)
+        if e:
+            r = {"tier1": {"dbic": e["dbic"], "onset_visit": int(round((e["onset_year"] - 2013.95) / 0.5 - 0.5)),
+                           "pre_sig": e["pre_sig"], "post_sig": e["post_sig"], "step": 1.0 if e["direction"] == "up" else -1.0},
+                 "tier2": None, "confirmed": bool(e.get("tier2_confirmed")), "stratum": e.get("stratum"),
+                 "year": e["year"], "flux": e["flux"], "err": e["err"]}
     s = r.get("tier2") or r.get("tier1") or {}
     onset = s.get("onset_visit")
     h = props.loc[c["designation"]]
@@ -196,7 +228,7 @@ def detail(c: dict, rows: dict, rises: dict, props: pd.DataFrame) -> dict:
                     "glimpse": rec(ar["glimpse"], ["survey", "mag3_6", "mag4_5", "mag5_8", "mag8_0", "sep"]),
                     "mipsgal": rec(ar["mipsgal"], ["mag_24", "fnu_24", "sep"]),
                     "spicy": rec(ar["spicy"], ["spicy", "class", "alpha", "mag3_6", "mag4_5", "sep"]),
-                    "simbad": rec(ar["simbad"], ["main_id", "otype"])},
+                    "simbad": rec(ar["simbad"], ["main_id", "otype", "sep", "error"])},
         "offset_status": offset_status(tid, rises, *e7b_calibration()) if arm == "on" else None,
         "baseline_flag": "negative" if (s.get("pre_sig") is not None and s["pre_sig"] <= -3) else "",
     }
@@ -219,10 +251,11 @@ def main() -> None:
     measured = {(a, t): st for a, t, st in zip(design.arm, design.tid, design.stratum)}
     spicy = set(pd.read_csv(A / "e4" / "spicy_on.csv").tid)
 
+    ev = events_by_key()
     cands = {}
     for t in s.index:
-        arm_hits = [("on", t)] if on_cls[t] in ("turn_on", "confused") or ("on", t) in rises else []
-        arm_hits += [("off", t)] if ("off", t) in rises or off_cls[t] == "turn_on" else []
+        arm_hits = [("on", t)] if on_cls[t] in ("turn_on", "confused") or ("on", t) in rises or f"c{t}" in ev else []
+        arm_hits += [("off", t)] if ("off", t) in rises or off_cls[t] == "turn_on" or f"x{t}" in ev else []
         for arm, tt in arm_hits:
             key = f"{'c' if arm == 'on' else 'x'}{tt}"
             cands[key] = {"key": key, "tid": int(tt), "arm": arm, "designation": s.designation[tt],
@@ -233,6 +266,8 @@ def main() -> None:
 
     def build(c):
         f = OUT / f"{c['key']}.json"
+        if f.exists():                                     # incremental: rescore refreshes existing details
+            return json.loads(f.read_text())
         d = detail(c, rows, rises, props)
         f.write_text(json.dumps(clean(d)))
         return d
@@ -242,9 +277,20 @@ def main() -> None:
     write_index(details, s, on_cls, off_cls, res, measured, rises, spicy, cands)
 
 
+EVENT_FIELDS = ("primary", "amp_mag", "amp_class", "shape", "rise_visits", "direction", "tier2_confirmed", "in_e7b_design")
+
+
+def events_by_key() -> dict:
+    f = A / "gallery" / "events.json"
+    return {e["key"]: e for e in json.loads(f.read_text())} if f.exists() else {}
+
+
 def gallery_rows(details: list[dict]) -> list[dict]:
+    ev = events_by_key()
     return [{k: d[k] for k in ("key", "tid", "arm", "designation", "ra", "dec", "e1_class", "stratum",
                                "machine_verdict", "onset_year", "diff_snr")}
+            | {k: ev.get(d["key"], {}).get(k) for k in EVENT_FIELDS}
+            | {"d_w1w2": (ev.get(d["key"], {}).get("colour") or {}).get("d_w1w2"), "counterpart": counterpart(d["archive"])}
             | {"props": d["props"], "confirmed": d["forced"]["confirmed"], "offset_status": d.get("offset_status"),
                "dbic": (d["forced"]["tier2"] or d["forced"]["tier1"] or {}).get("dbic"),
                "thumb": f"img/{d['key']}/neowise_diff.png" if d["epochs"] else None,
@@ -264,8 +310,13 @@ def rescore() -> None:
     spicy = set(pd.read_csv(A / "e4" / "spicy_on.csv").tid)
     details, cands = [], {}
     floor, thr = e7b_calibration()
+    rec = lambda df, cols: [] if df is None or df.empty else df[[x for x in cols if x in df]].round(3).to_dict("records")  # noqa: E731
     for f in sorted(OUT.glob("*.json")):
         d = json.loads(f.read_text())
+        # refresh the archival tables from the cached CSVs (adds SIMBAD separations / error provenance; no network)
+        ar = archive(d["key"], d["ra"], d["dec"])
+        d["archive"].update({"simbad": rec(ar["simbad"], ["main_id", "otype", "sep", "error"]),
+                             "mipsgal": rec(ar["mipsgal"], ["mag_24", "fnu_24", "sep"])})
         if d["arm"] == "on":
             d["offset_status"] = offset_status(d["tid"], rises, floor, thr)
             sig = ((d["forced"].get("tier2") or d["forced"].get("tier1") or {}).get("pre_sig"))

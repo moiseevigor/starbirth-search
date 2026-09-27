@@ -307,13 +307,16 @@ def _validation_reading(j: dict) -> str:
         cells = ", ".join(f"{c['arm']}/{c['stratum']} {c['k']}/{c['n']} (<= {100 * c['ci95'][1]:.0f}%)" for c in na["cells"])
         m = na["weighted_miss_ub95"]
         scr = j["rates"]["rise2"].get("screening", {})
-        rng_ = scr.get("diff_range_adj")
+        rng_ = scr.get("diff_ci95_with_screening")
+        env_ = scr.get("envelope_worst_case")
         out += (f" Symmetric tier-1 negative audit ({na['n']} positions remeasured with mask + uncertainty images, both arms, "
                 f"every stratum): {na['became_rise']} cross the threshold at tier 2. Per-cell miss rates with exact 95% upper "
                 f"bounds: {cells}. Population-weighted miss-rate upper bounds: clumps {100 * m['on']:.1f}%, offsets "
-                f"{100 * m['off']:.1f}%." + (f" Propagating the worst asymmetry, the true clump-minus-offset difference lies in "
-                                            f"[{1e4 * rng_[0]:.0f}, {1e4 * rng_[1]:.0f}] x 1e-4; the verdict rule (bootstrap lower bound > 0) is "
-                                            f"unchanged by it." if rng_ else ""))
+                f"{100 * m['off']:.1f}%." + (f" Combined 95% interval of the clump-minus-offset difference, jointly resampling "
+                                            f"the stratified rates and the per-cell miss rates: [{1e4 * rng_[0]:.0f}, {1e4 * rng_[1]:.0f}] x 1e-4 "
+                                            f"(it contains zero, so the verdict stays null); the conditional worst-case envelope "
+                                            f"[{1e4 * env_[0]:.0f}, {1e4 * env_[1]:.0f}] x 1e-4 is a sensitivity bound, not a coverage statement."
+                                            if rng_ and env_ else ""))
     return out
 
 

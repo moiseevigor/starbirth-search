@@ -316,6 +316,42 @@ def phases() -> list[dict]:
                         "sources) and one sky-subtraction artefact (pre and post flux <= 0). The excess is variability "
                         "of existing sources in clumps, the same population as E4; no new birth candidate.")
         e7["data"] = j
+    f7b = A / "e7b" / "results.json"
+    e7b = next(p for p in ph if p["id"] == "E7b")
+    if f7b.exists():
+        j = json.loads(f7b.read_text())
+        r1, r2 = j["rates"]["rise1"], j["rates"]["rise2"]
+        e7b["verdict"] = j["verdict"]
+        fn = sum(1 for r in j["rises"] if r["arm"] == "on" and r["confirmed"] and (r["tier2"] or {}).get("pre_sig") is not None
+                 and r["tier2"]["pre_sig"] < 3 and (r["tier2"]["post_sig"] or 0) >= 5)
+        e7b["result"] = (f"Threshold delta-BIC {j['threshold_dbic']:.0f}; floor s_abs = {j['floor']['s_abs']:.0f}, "
+                         f"s_rel = {j['floor']['s_rel']:.3f}. Population-weighted rise rate (tier 2): clumps "
+                         f"{1e4 * r2['on']:.1f}e-4 vs offsets {1e4 * r2['off']:.1f}e-4, difference {1e4 * r2['diff']:.1f}e-4 "
+                         f"(95% CI {1e4 * r2['diff_ci95'][0]:.1f} to {1e4 * r2['diff_ci95'][1]:.1f}); tier 1: "
+                         f"{1e4 * r1['diff']:.1f}e-4 ({1e4 * r1['diff_ci95'][0]:.1f} to {1e4 * r1['diff_ci95'][1]:.1f}). "
+                         + " ".join(f"{s['stratum']}: {s['on'][0]}/{s['on'][1]} vs {s['off'][0]}/{s['off'][1]} "
+                                    f"(Fisher p = {s['fisher_p_one_sided']:.3f})." for s in j["strata"])
+                         + f" Clump rises with pre < 3 sigma and post >= 5 sigma (tier 2): {fn}; each is in the review desk.")
+        e7b["data"] = j
+    f8 = A / "e8" / "extinction_budget.json"
+    e8 = next(p for p in ph if p["id"] == "E8")
+    if f8.exists():
+        j = json.loads(f8.read_text())
+        pl = {p["L"]: p for p in j["per_lum"]}
+        e8["result"] = (f"{j['n']:,} prestellar clumps: median clump column A_V = {j['a_v_full_pct']['50']:.0f} "
+                        f"(10-90%: {j['a_v_full_pct']['10']:.0f}-{j['a_v_full_pct']['90']:.0f}), i.e. A_4.5 at the "
+                        f"centre {j['a45_centre_pct']['50']:.2f} mag (90th pct {j['a45_centre_pct']['90']:.1f}). "
+                        f"H_clump refuted, H_dist confirmed: with zero extinction only "
+                        f"{100 * pl[5.0]['frac_detectable_no_ext']:.0f}% of clumps are close enough for a 5 L_sun Class 0 "
+                        f"source to reach W2 = 14.3 (median W2 = {pl[5.0]['w2_med_no_ext']:.1f}); clump extinction "
+                        f"lowers that to {100 * pl[5.0]['frac_detectable_clump_ext']:.0f}%. For 25 L_sun: "
+                        f"{100 * pl[25.0]['frac_detectable_no_ext']:.0f}% -> {100 * pl[25.0]['frac_detectable_clump_ext']:.0f}%; "
+                        f"for 100 L_sun: {100 * pl[100.0]['frac_detectable_clump_ext']:.0f}%, an upper bound that sits above "
+                        f"the 26% W2 visibility measured in E-1B for the youngest protostellar clumps (median L_bol ~ 100 "
+                        f"L_sun), as expected since geometry, multiplicity and inner-envelope extinction are not modelled. The "
+                        f"dominant effect is intrinsic faintness at 4.6 um at kpc distances; the clump column is a "
+                        f"factor ~2, and the inner envelope (unresolved by Herschel) is on top of both.")
+        e8["data"] = j
     return ph
 
 

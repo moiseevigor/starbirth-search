@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Starbirth Review Desk</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@112,600;112,800;125,800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#F4F6F9; --panel:#FFFFFF; --panel2:#EBEEF3; --ink:#141A26; --muted:#5B657A; --line:#D5DAE3;
+  --accent:#C7512F; --w1:#2F7FD6; --w2:#D9542F; --spz:#7D55C7; --good:#2E8B57; --bad:#C0392B; --warn:#B7791F; --art:#7A8699;
+  --display:"Archivo","Arial Narrow",Arial,sans-serif; --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace; color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0E1422; --panel:#151D2E; --panel2:#1C2539; --ink:#E6E9F0; --muted:#8C97AD; --line:#27314A;
+  --accent:#FF8A63; --w1:#5AA9FF; --w2:#FF7A59; --spz:#B48CF2; --good:#5CC48A; --bad:#FF6B6B; --warn:#E3B04B; --art:#7D889C; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#0E1422; --panel:#151D2E; --panel2:#1C2539; --ink:#E6E9F0; --muted:#8C97AD; --line:#27314A;
+  --accent:#FF8A63; --w1:#5AA9FF; --w2:#FF7A59; --spz:#B48CF2; --good:#5CC48A; --bad:#FF6B6B; --warn:#E3B04B; --art:#7D889C; color-scheme:dark;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--body)}
+.wrap{max-width:1320px;margin:0 auto;padding-inline:clamp(16px,3vw,28px);padding-block:0 60px}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance}
+h1{font-size:clamp(24px,3vw,34px);font-weight:800;font-stretch:125%}
+h2{font-size:20px;font-weight:800;font-stretch:112%}
+h3{font-size:15px;font-weight:600;font-stretch:112%}
+.mono,.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.eyebrow{font:500 11px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;background:color-mix(in srgb,var(--bg) 90%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+header.top .wrap{display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding-block:10px}
+.tabs{display:flex;gap:6px}
+button,.chip,select{font:500 12px var(--mono);border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:999px;padding:6px 12px;cursor:pointer}
+select{border-radius:6px}
+button:hover,.chip:hover{border-color:var(--muted)}
+[aria-pressed="true"],[aria-selected="true"]{background:var(--ink)!important;color:var(--bg)!important;border-color:var(--ink)!important}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.status{margin-left:auto;display:flex;gap:8px;align-items:center;font:12px var(--mono);color:var(--muted)}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--art)}
+.dot.ok{background:var(--good)} .dot.ro{background:var(--warn)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-top:18px}
+.stat{background:var(--panel);padding:10px 14px}
+.stat .v{font:800 22px var(--display);font-stretch:112%;font-variant-numeric:tabular-nums}
+.stat .k{font-size:12px;color:var(--muted)}
+.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-block:18px}
+input[type=search],input[type=text],textarea{font:14px var(--body);padding:8px 12px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+input[type=search]{width:min(100%,280px)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden;display:grid;cursor:pointer;text-align:left;padding:0;color:inherit;font:inherit}
+.card:hover{border-color:var(--muted)}
+.thumb{aspect-ratio:2/1;display:grid;grid-template-columns:1fr 1fr;background:#000}
+.thumb div{background-repeat:no-repeat;image-rendering:pixelated;position:relative}
+.thumb div::after{content:"";position:absolute;left:50%;top:50%;width:14px;height:14px;margin:-7px;border:1px solid rgba(255,255,255,.5);border-radius:50%}
+.card .body{padding:10px 12px;display:grid;gap:6px}
+.card .t{font:600 13px var(--mono)}
+.pills{display:flex;gap:6px;flex-wrap:wrap}
+.pill{font:600 10px var(--mono);letter-spacing:.05em;text-transform:uppercase;padding:3px 8px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
+.pill.compat{color:var(--good)} .pill.refuted{color:var(--w2)} .pill.control{color:var(--art)}
+.pill.approve{color:var(--bg);background:var(--good);border-color:var(--good)} .pill.refute{color:var(--bg);background:var(--bad);border-color:var(--bad)}
+.pill.unsure{color:var(--bg);background:var(--warn);border-color:var(--warn)} .pill.none{color:var(--muted)}
+.kv{display:flex;gap:12px;flex-wrap:wrap;font:12px var(--mono);color:var(--muted)}
+.kv b{color:var(--ink);font-weight:500}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{font:500 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--panel2);cursor:pointer;user-select:none;position:sticky;top:0}
+td.num,th.num{text-align:right}
+tbody tr:hover{background:var(--panel2)}
+tbody tr.link{cursor:pointer}
+.pager{display:flex;gap:8px;align-items:center;margin-top:10px;font:12px var(--mono)}
+/* detail */
+dialog{border:none;padding:0;background:var(--bg);color:var(--ink);width:min(1280px,100vw);max-width:100vw;max-height:100vh;height:100vh;margin:0 auto}
+dialog::backdrop{background:rgba(0,0,0,.55)}
+.dhead{position:sticky;top:0;z-index:2;background:var(--bg);border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px clamp(16px,3vw,24px)}
+.dbody{padding:16px clamp(16px,3vw,24px) 40px;display:grid;gap:16px}
+.cols{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px}
+@media (max-width:980px){.cols{grid-template-columns:1fr}}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;display:grid;gap:10px;min-width:0}
+.plot{width:100%;min-height:260px}
+.check{display:grid;gap:6px;margin:0;padding:0;list-style:none}
+.check li{display:grid;grid-template-columns:22px 1fr;gap:6px;font-size:13px}
+.check .ok{color:var(--good);font-weight:700} .check .no{color:var(--bad);font-weight:700}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sprite{aspect-ratio:1;width:100%;background-repeat:no-repeat;image-rendering:pixelated;background-color:#000;border-radius:4px;position:relative}
+.sprite::after{content:"";position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-9px;border:1px solid rgba(255,255,255,.55);border-radius:50%}
+.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+.thumbs figure{margin:0;display:grid;gap:3px}
+.thumbs img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:4px;display:block}
+.cap{font:11px/1.35 var(--mono);color:var(--muted)}
+.controls{display:flex;gap:8px;align-items:center}
+.controls input[type=range]{flex:1;accent-color:var(--accent)}
+.year{font:800 18px var(--display);font-variant-numeric:tabular-nums}
+.form{display:grid;gap:10px}
+.form .choices{display:flex;gap:8px;flex-wrap:wrap}
+.form label.choice{display:flex;gap:6px;align-items:center;border:1px solid var(--line);border-radius:6px;padding:7px 12px;cursor:pointer}
+.form label.choice:has(input:checked){border-color:var(--ink);background:var(--panel2)}
+textarea{min-height:110px;resize:vertical;width:100%}
+.hist{display:grid;gap:8px}
+.hist div{border-left:3px solid var(--line);padding-left:10px;font-size:13px}
+.msg{font:12px var(--mono)} .msg.err{color:var(--bad)} .msg.okm{color:var(--good)}
+.small{font-size:12px}
+a{color:var(--accent)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <strong style="font:800 15px var(--display);font-stretch:125%">Starbirth Review Desk</strong>
+  <div class="tabs" role="tablist">
+    <button role="tab" id="tab-gallery" aria-selected="true">Gallery</button>
+    <button role="tab" id="tab-catalog" aria-selected="false">Catalog</button>
+    <button role="tab" id="tab-log" aria-selected="false">Review log</button>
+  </div>
+  <div class="status"><span class="dot" id="srv-dot"></span><span id="srv-txt">checking server…</span></div>
+</div></header>
+
+<main class="wrap">
+  <div style="padding-top:22px;display:grid;gap:6px">
+    <span class="eyebrow">Archival search for protostar birth · human review</span>
+    <h1>Review every candidate the pipeline flagged</h1>
+    <p class="muted" style="max-width:80ch;margin:0">Each card is a position where some phase of the search saw a new or brightening 4.6 µm source. Open one to see all its evidence, then approve it as a birth start, refute it, or mark it unsure, with your reasoning. Decisions are written to <span class="mono">reviews/reviews.jsonl</span> in the repository. Offset-control positions are included and labelled so you can check your own false-positive rate.</p>
+  </div>
+  <div class="stats" id="stats"></div>
+
+  <section id="v-gallery">
+    <div class="bar">
+      <div class="tabs" id="f-arm"></div>
+      <select id="f-verdict" aria-label="Machine verdict"><option value="">Any machine verdict</option><option value="compat">Birth-compatible</option><option value="refuted">Refuted by checks</option></select>
+      <select id="f-review" aria-label="Review status"><option value="">Any review status</option><option value="none">Not reviewed</option><option value="approve">Approved</option><option value="refute">Refuted</option><option value="unsure">Unsure</option></select>
+      <select id="f-sort" aria-label="Sort"><option value="passes">Sort: checks passed</option><option value="dbic">Sort: rise strength (ΔBIC)</option><option value="onset">Sort: onset year</option><option value="tid">Sort: tid</option></select>
+      <input type="search" id="f-q" placeholder="Search designation or tid" aria-label="Search gallery">
+    </div>
+    <div class="grid" id="gallery"></div>
+  </section>
+
+  <section id="v-catalog" hidden>
+    <div class="bar">
+      <input type="search" id="c-q" placeholder="Search designation or tid" aria-label="Search catalog">
+      <select id="c-e1" aria-label="E1 class"><option value="">Any E1 class</option></select>
+      <select id="c-rise" aria-label="E7b rise"><option value="">Any E7b status</option><option value="measured">Measured in E7b</option><option value="tier1">Tier-1 rise</option><option value="tier2">Tier-2 confirmed rise</option></select>
+      <select id="c-spicy" aria-label="SPICY host"><option value="">SPICY host: any</option><option value="1">Has SPICY YSO within 3″</option><option value="0">No SPICY YSO</option></select>
+      <span class="muted small" id="c-count"></span>
+    </div>
+    <div class="tablewrap"><table><thead id="c-head"></thead><tbody id="c-body"></tbody></table></div>
+    <div class="pager"><button id="c-prev" type="button">Previous</button><span id="c-page"></span><button id="c-next" type="button">Next</button></div>
+  </section>
+
+  <section id="v-log" hidden>
+    <div class="bar"><span class="muted small">All decisions in order. The latest entry per candidate is its current decision.</span><a href="/api/reviews" target="_blank" rel="noopener">Raw JSON</a></div>
+    <div class="tablewrap"><table><thead><tr><th>Time (UTC)</th><th>Candidate</th><th>Decision</th><th>Reviewer</th><th>Machine verdict</th><th>Reasoning</th></tr></thead><tbody id="log-body"></tbody></table></div>
+  </section>
+</main>
+
+<dialog id="detail" aria-label="Candidate detail">
+  <div class="dhead">
+    <button type="button" id="d-close">Close</button><button type="button" id="d-prev">← Previous</button><button type="button" id="d-next">Next →</button>
+    <h2 id="d-title" style="margin-left:6px"></h2><span id="d-pills" class="pills"></span>
+  </div>
+  <div class="dbody" id="d-body"></div>
+</dialog>
+
+<script src="vendor/plotly-2.34.0.min.js"></script>
+<script src="catalog/index.js"></script>
+<script>
+(() => {
+const C = window.CAT, $ = s => document.querySelector(s);
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const fmt = (x, d = 2) => x == null || Number.isNaN(x) ? "–" : Number(x).toFixed(d);
+const cfg = { displaylogo: false, responsive: true, modeBarButtonsToRemove: ["lasso2d", "select2d"] };
+function base(extra = {}) { const m = css("--muted"), l = css("--line");
+  const ax = { gridcolor: l, zerolinecolor: l, linecolor: l, tickfont: { color: m, family: "IBM Plex Mono", size: 11 }, title: { font: { color: m, size: 12 } } };
+  return Object.assign({ paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)", font: { color: css("--ink"), family: "IBM Plex Sans", size: 12 },
+    margin: { l: 56, r: 12, t: 8, b: 44 }, xaxis: { ...ax }, yaxis: { ...ax }, legend: { orientation: "h", y: 1.15, x: 0, font: { color: m, size: 11 } } }, extra); }
+const ax = o => Object.assign({ ...base().xaxis }, o);
+
+// ---------------- reviews (server-backed, read-only fallback)
+let reviews = [], online = false;
+const latest = () => { const m = {}; reviews.forEach(r => m[r.key] = r); return m; };
+async function loadReviews() {
+  try { const r = await fetch("/api/reviews", { cache: "no-store" }); if (!r.ok) throw 0; reviews = await r.json(); online = true; }
+  catch { online = false; }
+  $("#srv-dot").className = "dot " + (online ? "ok" : "ro");
+  $("#srv-txt").textContent = online ? `saving to reviews/reviews.jsonl · ${reviews.length} entries` : "read-only: start scripts/serve_catalog.py to save reviews";
+}
+async function saveReview(rec) {
+  const r = await fetch("/api/reviews", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(rec) });
+  const j = await r.json(); if (!r.ok) throw new Error(j.error || "save failed"); reviews.push(j); return j;
+}
+
+// ---------------- stats
+function stats() { const L = latest(), G = C.gallery, E = C.meta.e7b, d = E.rates?.rise2;
+  const n = k => G.filter(g => L[g.key]?.decision === k).length;
+  $("#stats").innerHTML = [["Clumps in catalog", C.meta.n_catalog.toLocaleString("en-US")], ["Gallery candidates", G.filter(g => g.arm === "on").length],
+    ["Offset controls", G.filter(g => g.arm === "off").length], ["Birth-compatible (machine)", G.filter(g => g.machine_verdict === "birth-compatible").length],
+    ["Approved", n("approve")], ["Refuted", n("refute")], ["Unsure", n("unsure")], ["Not reviewed", G.filter(g => !L[g.key]).length],
+    ["E7b verdict", E.verdict ?? "–"], ["Rise rate on − off", d ? `${(1e4 * d.diff).toFixed(1)}×10⁻⁴ (${(1e4 * d.diff_ci95[0]).toFixed(1)} to ${(1e4 * d.diff_ci95[1]).toFixed(1)})` : "–"]]
+    .map(([k, v]) => `<div class="stat"><div class="v">${esc(v)}</div><div class="k">${esc(k)}</div></div>`).join(""); }
+
+// ---------------- gallery
+let armF = "on";
+$("#f-arm").innerHTML = [["on", "Candidates"], ["off", "Offset controls"], ["all", "Both"]].map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${v === armF}">${l}</button>`).join("");
+$("#f-arm").onclick = e => { const b = e.target.closest("button"); if (!b) return; armF = b.dataset.v; [...$("#f-arm").children].forEach(x => x.setAttribute("aria-pressed", x === b)); gallery(); };
+["#f-verdict", "#f-review", "#f-sort", "#f-q"].forEach(s => $(s).addEventListener("input", gallery));
+const vclass = v => v.startsWith("control") ? "control" : v === "birth-compatible" ? "compat" : "refuted";
+const vshort = v => v.startsWith("control") ? "control" : v === "birth-compatible" ? "birth-compatible" : "refuted by checks";
+function filtered() { const L = latest(), q = $("#f-q").value.trim().toLowerCase(), fv = $("#f-verdict").value, fr = $("#f-review").value, so = $("#f-sort").value;
+  let G = C.gallery.filter(g => (armF === "all" || g.arm === armF) && (!q || g.designation.toLowerCase().includes(q) || String(g.tid) === q)
+    && (!fv || vclass(g.machine_verdict) === fv) && (!fr || (fr === "none" ? !L[g.key] : L[g.key]?.decision === fr)));
+  const key = { passes: g => -g.passes, dbic: g => -(g.dbic ?? 0), onset: g => g.onset_year ?? 9999, tid: g => g.tid }[so];
+  return G.sort((a, b) => key(a) - key(b)); }
+function gallery() { const L = latest(), G = filtered();
+  $("#gallery").innerHTML = G.map(g => { const r = L[g.key], n = g.n_epochs || 1;
+    const bg = kind => g.thumb ? `background-image:url(img/${g.key}/neowise_${kind}.png);background-size:${n * 100}% 100%;background-position:100% 0` : "";
+    return `<button class="card" type="button" data-key="${g.key}"><div class="thumb"><div style="${bg("stack")}"></div><div style="${bg("diff")}"></div></div>
+      <div class="body"><span class="t">${esc(g.designation)}${g.arm === "off" ? " +60″" : ""}</span>
+      <div class="pills"><span class="pill ${vclass(g.machine_verdict)}">${vshort(g.machine_verdict)}</span><span class="pill ${r ? r.decision : "none"}">${r ? r.decision : "not reviewed"}</span></div>
+      <div class="kv"><span>tid <b>${g.tid}</b></span><span>ΔBIC <b>${g.dbic ? Math.round(g.dbic).toLocaleString("en-US") : "–"}</b></span><span>onset <b>${g.onset_year ?? "–"}</b></span><span>checks <b>${g.passes}/8</b></span></div></div></button>`; }).join("")
+    || `<p class="muted">No candidates match these filters.</p>`;
+  stats(); }
+$("#gallery").onclick = e => { const b = e.target.closest(".card"); if (b) openDetail(b.dataset.key, filtered().map(g => g.key)); };
+
+// ---------------- catalog table
+const COLS = C.columns, ROWS = C.rows, ci = Object.fromEntries(COLS.map((c, i) => [c, i]));
+const SHOW = [["tid", "tid", 1], ["designation", "Designation"], ["l", "ℓ (deg)", 1], ["b", "b (deg)", 1], ["dist", "d (kpc)", 1], ["mass", "M (M☉)", 1], ["temp", "T (K)", 1],
+  ["lbol", "L (L☉)", 1], ["e1_on", "E1 class"], ["spicy_host", "SPICY host"], ["e7b", "E7b stratum"], ["rise", "E7b rise"], ["key", "Gallery"]];
+[...new Set(ROWS.map(r => r[ci.e1_on]))].sort().forEach(v => $("#c-e1").insertAdjacentHTML("beforeend", `<option value="${esc(v)}">${esc(v)}</option>`));
+let sortC = "tid", sortD = 1, page = 0; const PER = 100;
+$("#c-head").innerHTML = "<tr>" + SHOW.map(([c, l, n]) => `<th data-c="${c}" class="${n ? "num" : ""}">${l}</th>`).join("") + "</tr>";
+$("#c-head").onclick = e => { const th = e.target.closest("th"); if (!th) return; const c = th.dataset.c; sortD = sortC === c ? -sortD : 1; sortC = c; page = 0; table(); };
+["#c-q", "#c-e1", "#c-rise", "#c-spicy"].forEach(s => $(s).addEventListener("input", () => { page = 0; table(); }));
+$("#c-prev").onclick = () => { page = Math.max(0, page - 1); table(); }; $("#c-next").onclick = () => { page++; table(); };
+function crows() { const q = $("#c-q").value.trim().toLowerCase(), e1 = $("#c-e1").value, ri = $("#c-rise").value, sp = $("#c-spicy").value;
+  const R = ROWS.filter(r => (!q || r[ci.designation].toLowerCase().includes(q) || String(r[ci.tid]) === q) && (!e1 || r[ci.e1_on] === e1)
+    && (!ri || (ri === "measured" ? r[ci.e7b] : ri === "tier1" ? r[ci.rise] : r[ci.rise] === "tier2")) && (!sp || String(+r[ci.spicy_host]) === sp));
+  const i = ci[sortC]; return R.sort((a, b) => (a[i] > b[i] ? 1 : a[i] < b[i] ? -1 : 0) * sortD); }
+function table() { const R = crows(), pages = Math.max(1, Math.ceil(R.length / PER)); page = Math.min(page, pages - 1);
+  $("#c-count").textContent = `${R.length.toLocaleString("en-US")} of ${ROWS.length.toLocaleString("en-US")} clumps`;
+  $("#c-page").textContent = `page ${page + 1} of ${pages}`;
+  $("#c-body").innerHTML = R.slice(page * PER, page * PER + PER).map(r => `<tr class="${r[ci.key] ? "link" : ""}" data-key="${r[ci.key] || ""}">` + SHOW.map(([c, , n]) => {
+    let v = r[ci[c]]; if (c === "spicy_host") v = v ? "yes" : ""; if (c === "key") v = v ? "open →" : "";
+    return `<td class="${n ? "num mono" : ""}">${esc(v ?? "–")}</td>`; }).join("") + "</tr>").join(""); }
+$("#c-body").onclick = e => { const tr = e.target.closest("tr.link"); if (tr) openDetail(tr.dataset.key, crows().filter(r => r[ci.key]).map(r => r[ci.key])); };
+
+// ---------------- review log
+function log() { $("#log-body").innerHTML = reviews.slice().reverse().map(r => `<tr><td class="mono">${esc(r.time)}</td><td class="mono"><a href="#${esc(r.key)}" data-key="${esc(r.key)}">${esc(r.key)}</a></td>
+  <td><span class="pill ${esc(r.decision)}">${esc(r.decision)}</span></td><td>${esc(r.reviewer)}</td><td class="small muted">${esc(r.machine_verdict)}</td><td style="white-space:normal;min-width:320px">${esc(r.reasoning)}</td></tr>`).join("")
+  || `<tr><td colspan="6" class="muted">No reviews yet.</td></tr>`; }
+$("#log-body").onclick = e => { const a = e.target.closest("a[data-key]"); if (a) { e.preventDefault(); openDetail(a.dataset.key, [a.dataset.key]); } };
+
+// ---------------- tabs
+const views = { gallery: "#v-gallery", catalog: "#v-catalog", log: "#v-log" };
+Object.keys(views).forEach(k => $(`#tab-${k}`).onclick = () => { Object.entries(views).forEach(([kk, s]) => { $(s).hidden = kk !== k; $(`#tab-${kk}`).setAttribute("aria-selected", kk === k); });
+  if (k === "catalog") table(); if (k === "log") log(); });
+
+// ---------------- detail
+const cache = {}; let nav = [], cur = null, timer = null;
+async function getDetail(key) { if (!cache[key]) { const r = await fetch(`catalog/${key}.json`, { cache: "no-store" }); if (!r.ok) throw new Error(`no detail file for ${key}`); cache[key] = await r.json(); } return cache[key]; }
+async function openDetail(key, list) {
+  nav = list && list.length ? list : [key]; cur = key; const dlg = $("#detail"); if (!dlg.open) dlg.showModal();
+  $("#d-body").innerHTML = `<p class="muted">Loading ${esc(key)}…</p>`; clearInterval(timer);
+  let d; try { d = await getDetail(key); } catch (e) { $("#d-body").innerHTML = `<p class="msg err">${esc(e.message)}. Rebuild with research/build_catalog.py.</p>`; return; }
+  renderDetail(d); history.replaceState(null, "", `#${key}`);
+}
+$("#d-close").onclick = () => { $("#detail").close(); clearInterval(timer); history.replaceState(null, "", location.pathname); };
+$("#detail").addEventListener("close", () => clearInterval(timer));
+const step = s => { const i = nav.indexOf(cur); if (i < 0) return; const j = i + s; if (j >= 0 && j < nav.length) openDetail(nav[j], nav); };
+$("#d-prev").onclick = () => step(-1); $("#d-next").onclick = () => step(1);
+document.addEventListener("keydown", e => { if (!$("#detail").open || /TEXTAREA|INPUT/.test(document.activeElement.tagName)) return;
+  if (e.key === "ArrowRight") step(1); if (e.key === "ArrowLeft") step(-1); });
+
+function tableHTML(rows, cols) { if (!rows || !rows.length) return `<p class="muted small">None within the search radius.</p>`;
+  return `<div class="tablewrap"><table><thead><tr>${cols.map(c => `<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>${rows.map(r => `<tr>${cols.map(c => `<td class="mono">${esc(typeof r[c] === "number" ? +r[c].toFixed(3) : r[c])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`; }
+
+function renderDetail(d) {
+  const L = latest(), r = L[d.key], P = d.props, n = d.epochs.length, arch = d.archive;
+  $("#d-title").textContent = `${d.designation}${d.arm === "off" ? " (offset control +60″)" : ""}`;
+  $("#d-pills").innerHTML = `<span class="pill ${vclass(d.machine_verdict)}">${esc(vshort(d.machine_verdict))}</span><span class="pill ${r ? r.decision : "none"}">${r ? r.decision : "not reviewed"}</span>`;
+  const coord = `${d.ra.toFixed(5)} ${d.dec >= 0 ? "+" : ""}${d.dec.toFixed(5)}`;
+  $("#d-body").innerHTML = `
+  <div class="cols">
+    <div class="box"><h3>Machine checklist</h3><p class="small muted">A birth start needs a new source where nothing was before. Every item must pass for the machine to call it birth-compatible.</p>
+      <ul class="check">${d.checklist.map(c => `<li><span class="${c.pass ? "ok" : "no"}">${c.pass ? "✓" : "✗"}</span><span>${esc(c.label)}</span></li>`).join("")}</ul>
+      <div class="kv"><span>verdict <b>${esc(d.machine_verdict)}</b></span></div></div>
+    <div class="box"><h3>Clump and position</h3>
+      <div class="kv"><span>tid <b>${d.tid}</b></span><span>RA Dec <b>${coord}</b></span><span>ℓ b <b>${fmt(P.glon, 3)} ${fmt(P.glat, 3)}</b></span></div>
+      <div class="kv"><span>d <b>${fmt(P.dist)} kpc</b></span><span>M <b>${fmt(P.mass, 1)} M☉</b></span><span>T <b>${fmt(P.temp, 1)} K</b></span><span>L <b>${fmt(P.l_bol, 1)} L☉</b></span><span>70 µm limit <b>${fmt(P.ulim_70, 3)} Jy</b></span></div>
+      <div class="kv"><span>E1 class <b>${esc(d.e1_class)}</b></span><span>E7b stratum <b>${esc(d.stratum ?? "–")}</b></span><span>onset <b>${d.onset_year ?? "–"}</b></span><span>diff-image S/N <b>${fmt(d.diff_snr, 1)}</b></span></div>
+      <div class="kv"><a href="https://simbad.cds.unistra.fr/simbad/sim-coo?Coord=${encodeURIComponent(coord)}&Radius=10&Radius.unit=arcsec" target="_blank" rel="noopener">SIMBAD</a>
+        <a href="https://irsa.ipac.caltech.edu/applications/finderchart/?locstr=${encodeURIComponent(coord)}" target="_blank" rel="noopener">IRSA finder chart</a>
+        <a href="https://aladin.cds.unistra.fr/AladinLite/?target=${encodeURIComponent(coord)}&fov=0.05&survey=CDS%2FP%2FunWISE%2Fcolor-W2-W1W2-W1" target="_blank" rel="noopener">Aladin Lite</a></div></div>
+  </div>
+  <div class="cols">
+    <div class="box"><h3>Forced photometry (every W2 frame, masked; per visit)</h3><div class="plot" id="p-forced"></div>
+      <p class="cap">W2 flux per ~6-month visit at zeropoint 22.5 (m = 22.5 − 2.5 log₁₀ f; 5.5″ aperture, not aperture-corrected), errors including the calibrated systematic floor. Dotted: fitted onset. ${d.forced.tier2 ? `Tier 2 (mask + uncertainty images): ΔBIC ${Math.round(d.forced.tier2.dbic)}, post ${fmt(d.forced.tier2.post_sig, 1)}σ, pre ${fmt(d.forced.tier2.pre_sig, 1)}σ; ${d.forced.confirmed ? "confirmed" : "not confirmed"}.` : "No tier-2 remeasurement."}</p></div>
+    <div class="box"><h3>NEOWISE W2 images per visit</h3>
+      <div class="controls"><button type="button" id="p-play">Play</button><input type="range" id="p-slider" min="0" max="${Math.max(n - 1, 0)}" value="0" aria-label="Epoch"><span class="year" id="p-year"></span></div>
+      <div class="pair"><div class="sprite" id="p-stack"></div><div class="sprite" id="p-diff"></div></div>
+      <p class="cap">Left: median stack of single exposures, 96″ field, one brightness scale for all epochs. Right: minus the 2014–15 reference (red brighter, blue fainter). Circle: target position.</p></div>
+  </div>
+  <div class="cols">
+    <div class="box"><h3>NEOWISE catalog detections within 6″</h3><div class="plot" id="p-e1"></div>
+      <p class="cap">W2 (Vega mag, brighter up) of every catalog detection, coloured by distance from the target (″); hollow = W2 contamination flag. Lower panel: field detections within 60″ per visit (coverage).</p></div>
+    <div class="box"><h3>Same position across surveys (3′ field)</h3><div class="thumbs">${d.images.map(im => `<figure><img src="${esc(im.src)}" alt="${esc(im.label)} cutout" loading="lazy"><figcaption class="cap"><b style="color:var(--ink)">${esc(im.label)}</b><br>${esc(im.wl)} · ${esc(im.epoch)}</figcaption></figure>`).join("") || `<p class="muted small">No survey imagery.</p>`}</div></div>
+  </div>
+  <div class="box"><h3>Archival sources</h3><div class="cols">
+    <div><div class="eyebrow">Spitzer GLIMPSE / Vela-Carina (≤6″)</div>${tableHTML(arch.glimpse, ["survey", "mag3_6", "mag4_5", "mag5_8", "mag8_0", "sep"])}
+      <div class="eyebrow" style="margin-top:10px">SPICY YSO candidates (≤10″)</div>${tableHTML(arch.spicy, ["spicy", "class", "alpha", "mag3_6", "mag4_5", "sep"])}</div>
+    <div><div class="eyebrow">AllWISE 2010 (≤6″)</div>${tableHTML(arch.allwise, ["w1mpro", "w2mpro", "w3mpro", "w4mpro", "sep"])}
+      <div class="eyebrow" style="margin-top:10px">MIPSGAL 24 µm (≤6″)</div>${tableHTML(arch.mipsgal, ["mag_24", "fnu_24", "sep"])}
+      <div class="eyebrow" style="margin-top:10px">SIMBAD (≤10″)</div>${tableHTML(arch.simbad, ["main_id", "otype"])}</div></div></div>
+  <div class="cols">
+    <form class="box form" id="rv-form"><h3>Your decision</h3>
+      <div class="choices" role="radiogroup" aria-label="Decision">
+        ${[["approve", "Approve: birth start"], ["refute", "Refute"], ["unsure", "Unsure"]].map(([v, l]) => `<label class="choice"><input type="radio" name="decision" value="${v}" required> ${l}</label>`).join("")}</div>
+      <div class="choices">${["pre-existing source", "blend / confusion", "artefact", "extinction change", "outburst of known YSO", "genuine new source"].map(t => `<label class="choice small"><input type="checkbox" name="tags" value="${t}"> ${t}</label>`).join("")}</div>
+      <label for="rv-why" class="small muted">Reasoning (required, at least 10 characters)</label>
+      <textarea id="rv-why" name="reasoning" minlength="10" maxlength="5000" required placeholder="What in the evidence supports your decision?"></textarea>
+      <div class="controls"><label for="rv-who" class="small muted">Reviewer</label><input type="text" id="rv-who" name="reviewer" maxlength="60" required style="flex:1">
+        <button type="submit" id="rv-save">Save decision</button></div>
+      <div class="msg" id="rv-msg"></div></form>
+    <div class="box"><h3>Review history for this candidate</h3><div class="hist" id="rv-hist"></div></div>
+  </div>`;
+  // images
+  const slider = $("#p-slider"); const show = () => { const i = +slider.value; ["stack", "diff"].forEach(k => { const el = $(`#p-${k}`);
+    el.style.backgroundImage = n ? `url(img/${d.key}/neowise_${k}.png)` : "none"; el.style.backgroundSize = `${n * 100}% 100%`; el.style.backgroundPosition = n > 1 ? `${i / (n - 1) * 100}% 0` : "0 0"; });
+    $("#p-year").textContent = n ? d.epochs[i].year.toFixed(1) : "–"; };
+  slider.oninput = () => { clearInterval(timer); timer = null; $("#p-play").textContent = "Play"; show(); };
+  $("#p-play").onclick = () => { if (timer) { clearInterval(timer); timer = null; $("#p-play").textContent = "Play"; return; }
+    timer = setInterval(() => { slider.value = (+slider.value + 1) % Math.max(n, 1); show(); }, 450); $("#p-play").textContent = "Pause"; };
+  show();
+  // forced photometry
+  const F = d.forced, tr = [{ type: "scatter", mode: "markers", name: "forced W2 flux", x: F.year, y: F.flux, error_y: { type: "data", array: F.err, color: css("--muted"), thickness: 1 }, marker: { size: 7, color: css("--w2") } }];
+  Plotly.react("p-forced", tr, base({ xaxis: ax({ title: { text: "year" }, range: [2013.8, 2024.8] }), yaxis: { ...base().yaxis, title: { text: "W2 flux (ZP 22.5)" } },
+    shapes: d.onset_year ? [{ type: "line", x0: d.onset_year, x1: d.onset_year, y0: 0, y1: 1, yref: "paper", line: { color: css("--accent"), dash: "dot" } }] : [] }), cfg);
+  const E1 = d.e1_rows, cov = arch.coverage;
+  Plotly.react("p-e1", [{ type: "scatter", mode: "markers", x: E1.t, y: E1.w2, text: E1.sep.map((s, i) => `${s}″ SNR ${E1.snr[i]} flag ${E1.flag[i]}`),
+      marker: { size: 6, color: E1.sep, cmin: 0, cmax: 6, colorscale: [[0, css("--w2")], [1, css("--w1")]], symbol: E1.flag.map(f => f === "0" ? "circle" : "circle-open"),
+        colorbar: { title: { text: "sep (″)", font: { size: 11, color: css("--muted") } }, thickness: 8, len: 0.7, y: 0.62, tickfont: { color: css("--muted"), size: 10 } } }, hovertemplate: "%{x:.2f}: W2 %{y:.2f} · %{text}<extra></extra>", showlegend: false },
+    { type: "bar", x: cov.map((_, v) => 2013.95 + (v + 0.5) * 0.5), y: cov, yaxis: "y2", marker: { color: css("--line") }, showlegend: false, hovertemplate: "%{x}: %{y} field dets<extra></extra>" }],
+    base({ xaxis: ax({ title: { text: "year" }, range: [2013.8, 2024.8] }), yaxis: { ...base().yaxis, title: { text: "W2 (mag)" }, autorange: "reversed", domain: [0.28, 1] },
+      yaxis2: { ...base().yaxis, domain: [0, 0.2], title: { text: "cov" } } }), cfg);
+  // reviews
+  const H = reviews.filter(x => x.key === d.key).reverse();
+  $("#rv-hist").innerHTML = H.map(x => `<div><span class="pill ${esc(x.decision)}">${esc(x.decision)}</span> <span class="mono small">${esc(x.time)} · ${esc(x.reviewer)}</span>${x.tags?.length ? `<div class="small muted">${x.tags.map(esc).join(" · ")}</div>` : ""}<div>${esc(x.reasoning)}</div></div>`).join("") || `<p class="muted small">No decisions yet.</p>`;
+  let who = ""; try { who = localStorage.getItem("sb-reviewer") || ""; } catch {}
+  $("#rv-who").value = who;
+  if (!online) { $("#rv-save").disabled = true; $("#rv-msg").className = "msg err"; $("#rv-msg").textContent = "Read-only: start the local server (scripts/serve_catalog.py) to save decisions."; }
+  $("#rv-form").onsubmit = async e => { e.preventDefault(); const fd = new FormData(e.target);
+    const rec = { key: d.key, decision: fd.get("decision"), reasoning: (fd.get("reasoning") || "").trim(), reviewer: (fd.get("reviewer") || "").trim(), tags: fd.getAll("tags"), machine_verdict: d.machine_verdict };
+    try { localStorage.setItem("sb-reviewer", rec.reviewer); } catch {}
+    try { await saveReview(rec); $("#rv-msg").className = "msg okm"; $("#rv-msg").textContent = `Saved: ${rec.decision}.`; renderDetail(d); gallery(); }
+    catch (err) { $("#rv-msg").className = "msg err"; $("#rv-msg").textContent = err.message; } };
+}
+
+// ---------------- boot
+loadReviews().then(() => { gallery(); if (location.hash.length > 1) openDetail(location.hash.slice(1), filtered().map(g => g.key)); });
+})();
+</script>
+</body>
+</html>

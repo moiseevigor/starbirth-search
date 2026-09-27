@@ -94,9 +94,9 @@ def _cutout(fr: dict, ra: float, dec: float, size_arcsec: int) -> bytes | None:
     return b
 
 
-def neowise_stacks(key: str, ra: float, dec: float, per_visit: int = 8, npix: int = 64,
-                   pix_arcsec: float = 1.5) -> list[dict]:
-    """Median W2 stack per NEOWISE visit on a common grid (npix*pix_arcsec field)."""
+def visit_medians(ra: float, dec: float, per_visit: int = 8, npix: int = 64,
+                  pix_arcsec: float = 1.5) -> tuple[dict[int, np.ndarray], dict[int, list[dict]], dict[int, int]]:
+    """Per-visit median W2 stacks on a common TAN grid centred on (ra, dec)."""
     from reproject import reproject_interp
 
     frames = _frames(ra, dec)
@@ -128,7 +128,32 @@ def neowise_stacks(key: str, ra: float, dec: float, per_visit: int = 8, npix: in
         stacks.setdefault(int((fr["mjd"] - NEO0) // VISIT), []).append(img)
 
     visits = sorted(stacks)
-    meds = {v: np.nanmedian(np.stack(stacks[v]), axis=0) for v in visits}
+    return ({v: np.nanmedian(np.stack(stacks[v]), axis=0) for v in visits}, by_visit,
+            {v: len(stacks[v]) for v in visits})
+
+
+def diff_snr(ra: float, dec: float, onset_visit: int, r_src_px: float = 2.0, r_bkg_px: float = 6.0) -> float | None:
+    """Peak of (median post-onset stack - median pre-onset stack) within r_src_px (3") of the
+    target, in units of the robust std of the difference map outside r_bkg_px (9")."""
+    meds, _, _ = visit_medians(ra, dec)
+    pre = [m for v, m in meds.items() if v < onset_visit]
+    post = [m for v, m in meds.items() if v >= onset_visit]
+    if len(pre) < 2 or len(post) < 2:
+        return None
+    d = np.nanmedian(np.stack(post), 0) - np.nanmedian(np.stack(pre), 0)
+    n = d.shape[0]
+    yy, xx = np.indices(d.shape)
+    rr = np.hypot(xx - (n - 1) / 2, yy - (n - 1) / 2)
+    bkg = d[(rr > r_bkg_px) & np.isfinite(d)]
+    sd = 1.4826 * np.median(np.abs(bkg - np.median(bkg)))
+    return float(np.nanmax(d[rr <= r_src_px]) / sd) if sd > 0 else None
+
+
+def neowise_stacks(key: str, ra: float, dec: float, per_visit: int = 8, npix: int = 64,
+                   pix_arcsec: float = 1.5) -> list[dict]:
+    """Median W2 stack per NEOWISE visit on a common grid (npix*pix_arcsec field), rendered to sprites."""
+    meds, by_visit, nstack = visit_medians(ra, dec, per_visit, npix, pix_arcsec)
+    visits = sorted(meds)
     if not meds:
         return []
     allpix = np.concatenate([m[np.isfinite(m)] for m in meds.values()])
@@ -154,7 +179,7 @@ def neowise_stacks(key: str, ra: float, dec: float, per_visit: int = 8, npix: in
             out_dir / f"d{v:02d}.png", optimize=True)
         mjd = float(np.median([fr["mjd"] for fr in by_visit[v]]))
         res.append({"visit": v, "mjd": round(mjd, 2), "year": round(2013.95 + (mjd - NEO0) / 365.25, 2),
-                    "n": len(stacks[v]), "src": f"img/{key}/neowise/v{v:02d}.png",
+                    "n": nstack[v], "src": f"img/{key}/neowise/v{v:02d}.png",
                     "diff": f"img/{key}/neowise/d{v:02d}.png"})
     for kind, pre in (("stack", "v"), ("diff", "d")):
         ims = [Image.open(out_dir / f"{pre}{r['visit']:02d}.png").convert("RGB") for r in res]

@@ -141,7 +141,7 @@ PHASES = [
              "catalog threshold where very young, low-luminosity sources would first appear.",
         figs=["e6"]),
     dict(
-        id="E7", title="Faint turn-ons with forced photometry", date="2026-09-27", verdict="pending",
+        id="E7", title="Faint turn-ons with forced photometry", date="2026-09-27", verdict="superseded",
         question="Below the NEOWISE catalog threshold, do prestellar clumps show faint persistent brightenings that "
                  "the catalog-level search (E1) could not see?",
         hypothesis="Rises (positive change point, onset 2015.5-2023.5) at clump positions exceed the offset-control "
@@ -153,7 +153,46 @@ PHASES = [
         result="(computed at build time from artifacts/e7/summary.json)",
         caveats="Fixed-aperture photometry is blended with neighbours in crowded fields; a varying neighbour inside "
                 "5.5\" mimics a rise. 'From nothing' uses pre-onset flux < 3 sigma, not a true upper limit.",
-        next="E8: characterise the faint-rise population (amplitudes, W1-W2 colours, onset years) against "
-             "the E4 burst rate, and extend vetting to the Vela-Carina Spitzer survey (l = 255-295 deg).",
+        next="Superseded by E7b after an adversarial review: clump positions were preselected for variability "
+             "while offsets were not, photometry errors ignored masks and visit systematics, and 'from nothing' "
+             "did not require a post-onset detection.",
         figs=["e7"]),
+    dict(
+        id="E7b", title="Faint rises, symmetric re-test", date="2026-09-27", verdict="pending",
+        question="Correcting the three E7 flaws, is there a clump-associated excess of faint W2 rises, and does any "
+                 "rise start from nothing?",
+        hypothesis="Pre-registered: confirmed only if the bootstrap 95% lower bound of the population-weighted rise "
+                   "rate (clumps minus offsets) is above zero, using rises confirmed with mask and uncertainty images.",
+        test="Both arms classified by the same E1 rule on their own detections and sampled per stratum (all "
+             "variable, 500 none, 300 steady); rates weighted by stratum size. Frames with qual_frame = 0 or moon "
+             "< 15 deg dropped; per-visit error = max(propagated, robust scatter) plus a systematic floor calibrated "
+             "on offsets (median reduced chi^2 = 1); threshold = population-weighted 99th percentile of offsets "
+             "(>= 20). Tier 2 remeasures every rise with L1b mask (fatal bits) and uncertainty images. "
+             "Injection-recovery on real clump light curves. 'From nothing' needs pre-onset flux < 3 sigma, no "
+             "catalog detection before onset, post-onset >= 5 sigma and a >= 5 sigma difference-image source.",
+        result="(computed at build time from artifacts/e7b/results.json)",
+        caveats="Aperture photometry still blends neighbours within ~6\"; the offset arm samples the Galactic field, "
+                "not clump backgrounds, so the FPR calibration is approximate at structured positions.",
+        next="Human review of every candidate in the local review desk (scripts/serve_catalog.py).",
+        figs=["e7b"]),
+    dict(
+        id="E8", title="Which dust hides a newborn at 4.6 um?", date="2026-09-27", verdict="partial",
+        question="The literature says a newborn protostar is dark at 3-5 um. Is it the clump's own beam-averaged "
+                 "dust column (which Hi-GAL measures) or the unresolved inner envelope, and how much is simply "
+                 "distance?",
+        hypothesis="H_clump: the clump column alone pushes a 1-25 L_sun newborn below the NEOWISE limit "
+                   "(W2 = 14.3) for most clumps. H_dist: even with zero extinction most would be below the limit.",
+        test="Per prestellar clump (0 < d <= 4 kpc): A_4.5 from the catalogue surface density (Sigma -> N_H2 -> "
+             "A_V -> A_K -> A_4.5, half the column for a central source); unextincted W2 scaled from the HOPS "
+             "Class 0 median ([4.5] = 12.16 at 420 pc for 5.5 L_sun, F_4.5 ~ L); fraction detectable with and "
+             "without clump extinction for L = 1, 5, 25, 100 L_sun.",
+        result="(computed at build time from artifacts/e8/extinction_budget.json)",
+        caveats="F_4.5 ~ L is crude (the 4.5 um flux of Class 0 sources is scattered/shocked light and depends on "
+                "geometry); the HOPS median already includes an evolved envelope, so a fresh newborn (no near-IR "
+                "for ~2e4 yr per Masunaga & Inutsuka 2000) is fainter still: these are upper bounds on "
+                "detectability. Sigma is beam-averaged (Hi-GAL 250 um beam ~18\"), so the inner envelope column "
+                "is not included by construction.",
+        next="Human review of every flagged candidate (review desk), then the far-IR/sub-mm two-epoch test that "
+             "the literature identifies as the band where a birth first shows.",
+        figs=["e8"]),
 ]

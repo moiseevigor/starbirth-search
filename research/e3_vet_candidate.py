@@ -45,18 +45,26 @@ def sep(ra, dec, ra0, dec0):
     return 3600 * np.hypot(((ra - ra0 + 180) % 360 - 180) * np.cos(np.radians(dec0)), dec - dec0)
 
 
-def vet(designation: str) -> dict:
-    cat = pd.read_csv(ROOT / "cache" / "higal360clump.csv")
-    h = cat[cat.designation == designation].iloc[0]
-    ra, dec = float(h.ra), float(h.dec)
-    out = ROOT / "artifacts" / "e3_vet" / designation
-    out.mkdir(parents=True, exist_ok=True)
+FILES = ("neowise_60arcsec", "lightcurve", "allwise", "allwise_mep", "glimpse", "mipsgal", "spicy", "simbad")
 
+
+def archive(name: str, ra: float, dec: float) -> dict[str, pd.DataFrame]:
+    """Archival history of any position (cached in artifacts/e3_vet/<name>/)."""
+    out = ROOT / "artifacts" / "e3_vet" / name
+    # cache format v2: all four GLIMPSE-family archives + separations; older caches are recomputed
+    if (out / "VERSION").exists() and (out / "VERSION").read_text().strip() == "v2" and \
+            all((out / f"{f}.csv").exists() for f in FILES):
+        def rd(f):
+            try:
+                return pd.read_csv(out / f"{f}.csv", index_col=0 if f == "lightcurve" else None)
+            except pd.errors.EmptyDataError:
+                return pd.DataFrame()
+        return {f: rd(f) for f in FILES}
+    out.mkdir(parents=True, exist_ok=True)
     neo = cone("neowiser_p1bs_psd", "ra, dec, mjd, w1mpro, w1sigmpro, w1snr, w2mpro, w2sigmpro, w2snr, cc_flags",
                ra, dec, 60)
     neo["sep"] = sep(neo.ra, neo.dec, ra, dec)
     neo["visit"] = ((neo.mjd - NEO0) // 182.625).astype(int)
-    neo.to_csv(out / "neowise_60arcsec.csv", index=False)
     cover = neo.groupby("visit").size()                      # field detections per visit
     src = neo[neo.sep <= 3]
     lc = src.groupby("visit").agg(n=("mjd", "size"), w1=("w1mpro", "median"), w2=("w2mpro", "median"),
@@ -64,34 +72,41 @@ def vet(designation: str) -> dict:
     lc["w1_w2"] = lc.w1 - lc.w2
     lc = lc.reindex(range(22))
     lc["field_dets_60"] = cover.reindex(range(22)).fillna(0).astype(int)
-    lc.to_csv(out / "lightcurve.csv")
-
-    res = {"designation": designation, "ra": ra, "dec": dec, "dist_kpc": h.dist, "mass": h.mass,
-           "temp": h.temp, "l_bol": h.l_bol, "f24_higal": h.f24, "ulim_70": h.ulim_70}
     aw = cone("allwise_p3as_psd", "designation, ra, dec, w1mpro, w2mpro, w3mpro, w4mpro, w2snr, cc_flags",
               ra, dec, 6)
     aw["sep"] = sep(aw.ra, aw.dec, ra, dec)
-    aw.to_csv(out / "allwise.csv", index=False)
     mep = cone("allwise_p3as_mep", "ra, dec, mjd, w1mpro_ep, w2mpro_ep, w2sigmpro_ep", ra, dec, 6)
     mep["sep"] = sep(mep.ra, mep.dec, ra, dec)
-    mep.to_csv(out / "allwise_mep.csv", index=False)
     # GLIMPSE I 10<|l|<65, II |l|<10, 3D higher |b|, Vela-Carina l=255-295: query all four archives
     gl = pd.concat([cone(t, "ra, dec, mag3_6, mag4_5, mag5_8, mag8_0", ra, dec, 6).assign(survey=t)
                     for t in ("glimpse_s07_ar", "glimpse2_v2arc", "glimpse3d_v2arc", "velcara")], ignore_index=True)
     gl["sep"] = sep(gl.ra, gl.dec, ra, dec)
-    gl.to_csv(out / "glimpse.csv", index=False)
     mg = cone("mipsgalc", "ra, dec, mag_24, fnu_24", ra, dec, 6)
     mg["sep"] = sep(mg.ra, mg.dec, ra, dec)
-    mg.to_csv(out / "mipsgal.csv", index=False)
     sp = cone("spicy", "spicy, ra, dec, class, alpha, mag3_6, mag4_5, mag8_0, var", ra, dec, 10)
-    sp.to_csv(out / "spicy.csv", index=False)
+    sp["sep"] = sep(sp.ra, sp.dec, ra, dec)
     try:
         sb = tap(SIMBAD, f"SELECT main_id, otype, ra, dec FROM basic WHERE 1=CONTAINS(POINT('ICRS', ra, dec), "
                          f"CIRCLE('ICRS', {ra}, {dec}, {10 / 3600:.8f}))")
     except Exception as e:  # noqa: BLE001  SIMBAD outage must not kill the vet
         sb = pd.DataFrame({"error": [str(e)[:200]]})
-    sb.to_csv(out / "simbad.csv", index=False)
+    res = {"neowise_60arcsec": neo, "lightcurve": lc, "allwise": aw, "allwise_mep": mep, "glimpse": gl,
+           "mipsgal": mg, "spicy": sp, "simbad": sb}
+    for f, d in res.items():
+        d.to_csv(out / f"{f}.csv", index=(f == "lightcurve"))
+    (out / "VERSION").write_text("v2")
+    return res
 
+
+def vet(designation: str) -> dict:
+    cat = pd.read_csv(ROOT / "cache" / "higal360clump.csv")
+    h = cat[cat.designation == designation].iloc[0]
+    ra, dec = float(h.ra), float(h.dec)
+    A = archive(designation, ra, dec)
+    lc, aw, mep, gl, mg, sp, sb = (A[k] for k in ("lightcurve", "allwise", "allwise_mep", "glimpse", "mipsgal",
+                                                   "spicy", "simbad"))
+    res = {"designation": designation, "ra": ra, "dec": dec, "dist_kpc": h.dist, "mass": h.mass,
+           "temp": h.temp, "l_bol": h.l_bol, "f24_higal": h.f24, "ulim_70": h.ulim_70}
     print(f"\n=== {designation}  ra={ra:.5f} dec={dec:.5f}  d={h.dist} kpc  M={h.mass} Msun  T={h.temp} K  "
           f"Lbol={h.l_bol}  f24(HiGAL)={h.f24}  ulim70={h.ulim_70}")
     print("NEOWISE per visit (n=cand dets <=3\", field_dets_60 = coverage proxy):")

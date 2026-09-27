@@ -64,6 +64,17 @@ charts, literature timescales and the paper library. Rebuild with
 `.venv/bin/python research/build_viewer.py` (needs network for IRSA/CDS imagery), then open
 `viewer/index.html` in a browser.
 
+## Review desk (local)
+
+A browsable classification catalog of all 19,219 searched clumps and a gallery of every
+flagged birth-start candidate (with offset controls), each with its full evidence and a
+review form. Decisions are saved to `reviews/reviews.jsonl` (append-only).
+
+```bash
+.venv/bin/python research/build_catalog.py      # after research/e7b_symmetric.py tier1/tier2/analyze
+.venv/bin/python scripts/serve_catalog.py       # then open http://127.0.0.1:8792/catalog.html
+```
+
 ## Current status
 
 - **E1 full run** (19,219 prestellar clumps, 0 < d <= 4 kpc, NEOWISE 2014-2024): 4 persistent W2

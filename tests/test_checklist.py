@@ -12,7 +12,7 @@ def _detail(**over):
                    "tier2": {"onset_visit": 10, "post_sig": 12.0, "pre_sig": 0.8}, "confirmed": True},
         "archive": {"coverage": [200] * 22, "glimpse": [], "spicy": [], "allwise": []},
         "e1_rows": {"t": [], "snr": [], "sep": []},
-        "diff_snr": 9.0, "offset_rise": False,
+        "diff_snr": 9.0, "offset_status": "quiet",
     }
     d.update(over)
     return d
@@ -54,6 +54,25 @@ def test_uncovered_pre_onset_and_weak_diff_refute():
     d = _detail(archive={"coverage": [0] * 10 + [200] * 12, "glimpse": [], "spicy": [], "allwise": []}, diff_snr=2.0)
     _, verdict = checklist(d)
     assert "covered_pre" in verdict and "diff_source" in verdict
+
+
+def test_unmeasured_or_rising_offset_twin_refutes():
+    for status in ("unmeasured", "rise"):
+        _, verdict = checklist(_detail(offset_status=status))
+        assert "offset_quiet" in verdict, status
+
+
+def test_negative_baseline_refutes():
+    # a -7 sigma pre-onset flux is a failed sky model, not evidence of an empty position
+    d = _detail()
+    d["forced"]["tier2"]["pre_sig"] = -7.2
+    _, verdict = checklist(d)
+    assert "pre_quiet" in verdict
+
+
+def test_gallery_cards_render_checks_out_of_n():
+    html = (Path(__file__).parents[1] / "viewer" / "catalog.html").read_text()
+    assert "${g.passes}/${g.n_checks}" in html and "${g.passes}/8" not in html
 
 
 def test_offset_arm_is_labelled_control():

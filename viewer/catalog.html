@@ -8,52 +8,82 @@
 <style>
 :root{
   --bg:#F4F6F9; --panel:#FFFFFF; --panel2:#EBEEF3; --ink:#141A26; --muted:#5B657A; --line:#D5DAE3;
-  --accent:#C7512F; --w1:#2F7FD6; --w2:#D9542F; --spz:#7D55C7; --good:#2E8B57; --bad:#C0392B; --warn:#B7791F; --art:#7A8699;
+  --accent:#C7512F; --w1:#2F7FD6; --w2:#D9542F; --good:#2E8B57; --bad:#C0392B; --warn:#B7791F; --art:#7A8699;
+  --shadow:0 18px 40px -22px rgba(20,26,38,.35);
   --display:"Archivo","Arial Narrow",Arial,sans-serif; --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
-  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace; color-scheme:light;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --ease:cubic-bezier(.16,1,.3,1); color-scheme:light;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#0E1422; --panel:#151D2E; --panel2:#1C2539; --ink:#E6E9F0; --muted:#8C97AD; --line:#27314A;
-  --accent:#FF8A63; --w1:#5AA9FF; --w2:#FF7A59; --spz:#B48CF2; --good:#5CC48A; --bad:#FF6B6B; --warn:#E3B04B; --art:#7D889C; color-scheme:dark;}}
+  --accent:#FF8A63; --w1:#5AA9FF; --w2:#FF7A59; --good:#5CC48A; --bad:#FF6B6B; --warn:#E3B04B; --art:#7D889C;
+  --shadow:0 18px 40px -22px rgba(0,0,0,.7); color-scheme:dark;}}
 :root[data-theme="dark"]{
   --bg:#0E1422; --panel:#151D2E; --panel2:#1C2539; --ink:#E6E9F0; --muted:#8C97AD; --line:#27314A;
-  --accent:#FF8A63; --w1:#5AA9FF; --w2:#FF7A59; --spz:#B48CF2; --good:#5CC48A; --bad:#FF6B6B; --warn:#E3B04B; --art:#7D889C; color-scheme:dark;}
+  --accent:#FF8A63; --w1:#5AA9FF; --w2:#FF7A59; --good:#5CC48A; --bad:#FF6B6B; --warn:#E3B04B; --art:#7D889C;
+  --shadow:0 18px 40px -22px rgba(0,0,0,.7); color-scheme:dark;}
 *{box-sizing:border-box}
+html,body{height:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--body)}
-.wrap{max-width:1320px;margin:0 auto;padding-inline:clamp(16px,3vw,28px);padding-block:0 60px}
-h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance}
-h1{font-size:clamp(24px,3vw,34px);font-weight:800;font-stretch:125%}
-h2{font-size:20px;font-weight:800;font-stretch:112%}
-h3{font-size:15px;font-weight:600;font-stretch:112%}
+.wrap{max-width:1360px;margin:0 auto;padding-inline:clamp(16px,3vw,28px);padding-block:0 60px}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;letter-spacing:-.01em}
+h1{font-size:clamp(22px,2.6vw,30px);font-weight:800;font-stretch:125%;line-height:1.05}
+h2{font-size:19px;font-weight:800;font-stretch:112%}
+h3{font-size:14px;font-weight:600;font-stretch:112%}
 .mono,.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
 .muted{color:var(--muted)}
+.small{font-size:12px}
 .eyebrow{font:500 11px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
-header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;background:color-mix(in srgb,var(--bg) 90%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
-header.top .wrap{display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding-block:10px}
-.tabs{display:flex;gap:6px}
-button,.chip,select{font:500 12px var(--mono);border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:999px;padding:6px 12px;cursor:pointer}
+a{color:var(--accent)}
+/* controls */
+button,.chip,select{font:500 12px var(--mono);border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:999px;padding:6px 12px;cursor:pointer;
+  transition:transform .25s var(--ease),border-color .25s var(--ease),background-color .25s var(--ease)}
 select{border-radius:6px}
 button:hover,.chip:hover{border-color:var(--muted)}
+button:active,.chip:active,.card:active{transform:scale(.97)}
+button:disabled{opacity:.5;cursor:not-allowed}
+button.primary{background:var(--ink);color:var(--bg);border-color:var(--ink);font-weight:500}
 [aria-pressed="true"],[aria-selected="true"]{background:var(--ink)!important;color:var(--bg)!important;border-color:var(--ink)!important}
-button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.status{margin-left:auto;display:flex;gap:8px;align-items:center;font:12px var(--mono);color:var(--muted)}
-.dot{width:9px;height:9px;border-radius:50%;background:var(--art)}
-.dot.ok{background:var(--good)} .dot.ro{background:var(--warn)}
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-top:18px}
-.stat{background:var(--panel);padding:10px 14px}
-.stat .v{font:800 22px var(--display);font-stretch:112%;font-variant-numeric:tabular-nums}
-.stat .k{font-size:12px;color:var(--muted)}
-.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-block:18px}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,a:focus-visible,.card:focus-visible,th:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 input[type=search],input[type=text],textarea{font:14px var(--body);padding:8px 12px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
 input[type=search]{width:min(100%,280px)}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden;display:grid;cursor:pointer;text-align:left;padding:0;color:inherit;font:inherit}
-.card:hover{border-color:var(--muted)}
-.thumb{aspect-ratio:2/1;display:grid;grid-template-columns:1fr 1fr;background:#000}
+kbd{font:500 11px var(--mono);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:1px 5px;color:var(--muted);background:var(--panel)}
+/* header */
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;background:color-mix(in srgb,var(--bg) 90%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+header.top .wrap{display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding-block:10px}
+.brand{font:800 15px var(--display);font-stretch:125%}
+.tabs{display:flex;gap:6px}
+.status{margin-left:auto;display:flex;gap:8px;align-items:center;font:12px var(--mono);color:var(--muted);min-width:0}
+.status #srv-txt{max-width:38ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--art)}
+.dot.ok{background:var(--good)} .dot.ro{background:var(--warn)}
+.progress{height:3px;background:var(--line);width:100%}
+.progress b{display:block;height:100%;background:var(--accent);width:0;transition:width .6s var(--ease)}
+/* intro: asymmetric split, numbers breathe without boxes */
+.intro{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:28px;padding-top:26px;align-items:end}
+@media (max-width:900px){.intro{grid-template-columns:1fr}}
+.intro p{max-width:66ch;margin:0;color:var(--muted)}
+.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 24px;border-top:1px solid var(--line);padding-top:10px}
+.facts div{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px}
+.facts div span:last-child{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.facts .lead span:last-child{font:800 20px var(--display);font-stretch:112%}
+.tally{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:12px;font:12px var(--mono);color:var(--muted)}
+.tally i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-block:18px}
+/* gallery */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden;display:grid;cursor:pointer;text-align:left;padding:0;color:inherit;font:inherit;
+  transition:transform .3s var(--ease),box-shadow .3s var(--ease),border-color .3s var(--ease);animation:rise .5s var(--ease) both;animation-delay:calc(var(--i) * 28ms)}
+.card:hover{transform:translateY(-2px);box-shadow:var(--shadow);border-color:var(--muted)}
+.card.done{border-left:3px solid var(--good)} .card.done.refute{border-left-color:var(--bad)} .card.done.unsure{border-left-color:var(--warn)}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.thumb{aspect-ratio:2/1;display:grid;grid-template-columns:1fr 1fr;background:#0B0F18;position:relative}
 .thumb div{background-repeat:no-repeat;image-rendering:pixelated;position:relative}
 .thumb div::after{content:"";position:absolute;left:50%;top:50%;width:14px;height:14px;margin:-7px;border:1px solid rgba(255,255,255,.5);border-radius:50%}
+.thumb .yr{position:absolute;right:6px;bottom:4px;font:500 10px var(--mono);color:rgba(255,255,255,.75)}
 .card .body{padding:10px 12px;display:grid;gap:6px}
 .card .t{font:600 13px var(--mono)}
+.card .why{font-size:12px;color:var(--muted);min-height:1.3em}
 .pills{display:flex;gap:6px;flex-wrap:wrap}
 .pill{font:600 10px var(--mono);letter-spacing:.05em;text-transform:uppercase;padding:3px 8px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
 .pill.compat{color:var(--good)} .pill.refuted{color:var(--w2)} .pill.control{color:var(--art)}
@@ -61,67 +91,96 @@ input[type=search]{width:min(100%,280px)}
 .pill.unsure{color:var(--bg);background:var(--warn);border-color:var(--warn)} .pill.none{color:var(--muted)}
 .kv{display:flex;gap:12px;flex-wrap:wrap;font:12px var(--mono);color:var(--muted)}
 .kv b{color:var(--ink);font-weight:500}
+.empty{border:1px dashed var(--line);border-radius:8px;padding:28px;text-align:center;color:var(--muted);display:grid;gap:6px;justify-items:center}
+.empty b{color:var(--ink);font-family:var(--display);font-size:16px}
+/* table */
 .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
 table{border-collapse:collapse;width:100%;font-size:13px}
 th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
 th{font:500 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--panel2);cursor:pointer;user-select:none;position:sticky;top:0}
+th[aria-sort="ascending"]::after{content:" ↑"} th[aria-sort="descending"]::after{content:" ↓"}
 td.num,th.num{text-align:right}
 tbody tr:hover{background:var(--panel2)}
 tbody tr.link{cursor:pointer}
 .pager{display:flex;gap:8px;align-items:center;margin-top:10px;font:12px var(--mono)}
-/* detail */
-dialog{border:none;padding:0;background:var(--bg);color:var(--ink);width:min(1280px,100vw);max-width:100vw;max-height:100vh;height:100vh;margin:0 auto}
-dialog::backdrop{background:rgba(0,0,0,.55)}
-.dhead{position:sticky;top:0;z-index:2;background:var(--bg);border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px clamp(16px,3vw,24px)}
-.dbody{padding:16px clamp(16px,3vw,24px) 40px;display:grid;gap:16px}
-.cols{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px}
-@media (max-width:980px){.cols{grid-template-columns:1fr}}
+/* detail dialog */
+dialog{border:none;padding:0;background:var(--bg);color:var(--ink);width:min(1360px,100vw);max-width:100vw;max-height:100vh;height:100vh;margin:0 auto}
+dialog::backdrop{background:rgba(8,12,20,.6)}
+dialog[open]{animation:fade .25s var(--ease)}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.dhead{position:sticky;top:0;z-index:2;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px clamp(16px,3vw,24px)}
+.dhead .pos{font:12px var(--mono);color:var(--muted);margin-left:auto}
+.dbody{padding:16px clamp(16px,3vw,24px) 40px}
+.dcols{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(320px,1fr);gap:16px;align-items:start}
+@media (max-width:980px){.dcols{grid-template-columns:1fr}}
+.rail{position:sticky;top:64px;display:grid;gap:12px}
+@media (max-width:980px){.rail{position:static}}
+.evidence{display:grid;gap:14px;min-width:0}
+.sec{display:grid;gap:8px;padding-top:12px;border-top:1px solid var(--line)}
+.sec:first-child{border-top:none;padding-top:0}
 .box{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;display:grid;gap:10px;min-width:0}
-.plot{width:100%;min-height:260px}
-.check{display:grid;gap:6px;margin:0;padding:0;list-style:none}
-.check li{display:grid;grid-template-columns:22px 1fr;gap:6px;font-size:13px}
+.plot{width:100%;min-height:250px}
+.check{display:grid;gap:5px;margin:0;padding:0;list-style:none}
+.check li{display:grid;grid-template-columns:18px 1fr;gap:6px;font-size:12.5px;line-height:1.35}
 .check .ok{color:var(--good);font-weight:700} .check .no{color:var(--bad);font-weight:700}
 .pair{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.sprite{aspect-ratio:1;width:100%;background-repeat:no-repeat;image-rendering:pixelated;background-color:#000;border-radius:4px;position:relative}
+.pair>*,.sec>*,.evidence>*{min-width:0}   /* nowrap tables must scroll inside their track, not widen it */
+.sprite{aspect-ratio:1;width:100%;background-repeat:no-repeat;image-rendering:pixelated;background-color:#0B0F18;border-radius:4px;position:relative}
 .sprite::after{content:"";position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-9px;border:1px solid rgba(255,255,255,.55);border-radius:50%}
 .thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
 .thumbs figure{margin:0;display:grid;gap:3px}
-.thumbs img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:4px;display:block}
+.thumbs img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:4px;display:block;background:#0B0F18}
 .cap{font:11px/1.35 var(--mono);color:var(--muted)}
 .controls{display:flex;gap:8px;align-items:center}
 .controls input[type=range]{flex:1;accent-color:var(--accent)}
 .year{font:800 18px var(--display);font-variant-numeric:tabular-nums}
 .form{display:grid;gap:10px}
-.form .choices{display:flex;gap:8px;flex-wrap:wrap}
-.form label.choice{display:flex;gap:6px;align-items:center;border:1px solid var(--line);border-radius:6px;padding:7px 12px;cursor:pointer}
+.form .choices{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.form label.choice{display:flex;gap:6px;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:6px;padding:8px 6px;cursor:pointer;font-size:13px;transition:border-color .25s var(--ease),background-color .25s var(--ease)}
 .form label.choice:has(input:checked){border-color:var(--ink);background:var(--panel2)}
-textarea{min-height:110px;resize:vertical;width:100%}
-.hist{display:grid;gap:8px}
-.hist div{border-left:3px solid var(--line);padding-left:10px;font-size:13px}
-.msg{font:12px var(--mono)} .msg.err{color:var(--bad)} .msg.okm{color:var(--good)}
-.small{font-size:12px}
-a{color:var(--accent)}
-@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+.form label.choice input{margin:0}
+.form .tags{display:flex;gap:6px;flex-wrap:wrap}
+.form .tags label{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:4px 9px;cursor:pointer}
+.form .tags label:has(input:checked){border-color:var(--ink);background:var(--panel2)}
+.form .tags input{margin:0 4px 0 0}
+textarea{min-height:96px;resize:vertical;width:100%}
+.hist{display:grid;gap:8px;max-height:260px;overflow:auto}
+.hist div{border-left:3px solid var(--line);padding-left:10px;font-size:12.5px}
+.msg{font:12px var(--mono);min-height:1.2em} .msg.err{color:var(--bad)} .msg.okm{color:var(--good)}
+.hint{font:11px var(--mono);color:var(--muted);display:flex;gap:10px;flex-wrap:wrap}
+/* skeleton */
+.sk{background:linear-gradient(90deg,var(--panel2) 25%,var(--panel) 50%,var(--panel2) 75%);background-size:200% 100%;animation:shimmer 1.4s linear infinite;border-radius:6px}
+@keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
-<header class="top"><div class="wrap">
-  <strong style="font:800 15px var(--display);font-stretch:125%">Starbirth Review Desk</strong>
-  <div class="tabs" role="tablist">
-    <button role="tab" id="tab-gallery" aria-selected="true">Gallery</button>
-    <button role="tab" id="tab-catalog" aria-selected="false">Catalog</button>
-    <button role="tab" id="tab-log" aria-selected="false">Review log</button>
+<header class="top">
+  <div class="wrap">
+    <span class="brand">Starbirth Review Desk</span>
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tab-gallery" aria-selected="true">Gallery</button>
+      <button role="tab" id="tab-catalog" aria-selected="false">Catalog</button>
+      <button role="tab" id="tab-log" aria-selected="false">Review log</button>
+    </div>
+    <div class="status"><span id="prog-txt"></span><span class="dot" id="srv-dot"></span><span id="srv-txt">checking server…</span></div>
   </div>
-  <div class="status"><span class="dot" id="srv-dot"></span><span id="srv-txt">checking server…</span></div>
-</div></header>
+  <div class="progress" aria-hidden="true"><b id="prog-bar"></b></div>
+</header>
 
 <main class="wrap">
-  <div style="padding-top:22px;display:grid;gap:6px">
-    <span class="eyebrow">Archival search for protostar birth · human review</span>
-    <h1>Review every candidate the pipeline flagged</h1>
-    <p class="muted" style="max-width:80ch;margin:0">Each card is a position where some phase of the search saw a new or brightening 4.6 µm source. Open one to see all its evidence, then approve it as a birth start, refute it, or mark it unsure, with your reasoning. Decisions are written to <span class="mono">reviews/reviews.jsonl</span> in the repository. Offset-control positions are included and labelled so you can check your own false-positive rate.</p>
+  <div class="intro">
+    <div style="display:grid;gap:10px">
+      <span class="eyebrow">Archival search for protostar birth · human review</span>
+      <h1>Decide, for every flagged position, whether a star switched on</h1>
+      <p>Each card is a position where some phase of the search saw a new or brightening 4.6 µm source. Open one, read the evidence, then approve it as a birth start, refute it, or mark it unsure, with your reasoning. Decisions go to <span class="mono">reviews/reviews.jsonl</span> in the repository. Offset-control positions are mixed in and labelled, so your own false-positive rate is measurable.</p>
+      <div class="hint"><span><kbd>←</kbd><kbd>→</kbd> candidate</span><span><kbd>A</kbd> approve</span><span><kbd>R</kbd> refute</span><span><kbd>U</kbd> unsure</span><span><kbd>Ctrl</kbd>+<kbd>Enter</kbd> save</span><span><kbd>N</kbd> next unreviewed</span></div>
+    </div>
+    <div>
+      <div class="facts" id="facts"></div>
+      <div class="tally" id="tally"></div>
+    </div>
   </div>
-  <div class="stats" id="stats"></div>
 
   <section id="v-gallery">
     <div class="bar">
@@ -130,6 +189,7 @@ a{color:var(--accent)}
       <select id="f-review" aria-label="Review status"><option value="">Any review status</option><option value="none">Not reviewed</option><option value="approve">Approved</option><option value="refute">Refuted</option><option value="unsure">Unsure</option></select>
       <select id="f-sort" aria-label="Sort"><option value="passes">Sort: checks passed</option><option value="dbic">Sort: rise strength (ΔBIC)</option><option value="onset">Sort: onset year</option><option value="tid">Sort: tid</option></select>
       <input type="search" id="f-q" placeholder="Search designation or tid" aria-label="Search gallery">
+      <button type="button" id="btn-next" class="primary">Review next unreviewed</button>
     </div>
     <div class="grid" id="gallery"></div>
   </section>
@@ -143,19 +203,25 @@ a{color:var(--accent)}
       <span class="muted small" id="c-count"></span>
     </div>
     <div class="tablewrap"><table><thead id="c-head"></thead><tbody id="c-body"></tbody></table></div>
+    <div id="c-empty" class="empty" hidden><b>No clumps match</b><span>Clear a filter or search by designation, e.g. HIGALBM354.2348+0.5057.</span></div>
     <div class="pager"><button id="c-prev" type="button">Previous</button><span id="c-page"></span><button id="c-next" type="button">Next</button></div>
   </section>
 
   <section id="v-log" hidden>
     <div class="bar"><span class="muted small">All decisions in order. The latest entry per candidate is its current decision.</span><a href="/api/reviews" target="_blank" rel="noopener">Raw JSON</a></div>
     <div class="tablewrap"><table><thead><tr><th>Time (UTC)</th><th>Candidate</th><th>Decision</th><th>Reviewer</th><th>Machine verdict</th><th>Reasoning</th></tr></thead><tbody id="log-body"></tbody></table></div>
+    <div id="log-empty" class="empty" hidden><b>No decisions yet</b><span>Open a candidate from the gallery and save your first review.</span></div>
   </section>
 </main>
 
 <dialog id="detail" aria-label="Candidate detail">
   <div class="dhead">
-    <button type="button" id="d-close">Close</button><button type="button" id="d-prev">← Previous</button><button type="button" id="d-next">Next →</button>
+    <button type="button" id="d-close">Close</button>
+    <button type="button" id="d-prev">← Previous</button>
+    <button type="button" id="d-next">Next →</button>
+    <button type="button" id="d-nextun">Next unreviewed</button>
     <h2 id="d-title" style="margin-left:6px"></h2><span id="d-pills" class="pills"></span>
+    <span class="pos" id="d-pos"></span>
   </div>
   <div class="dbody" id="d-body"></div>
 </dialog>
@@ -174,31 +240,34 @@ function base(extra = {}) { const m = css("--muted"), l = css("--line");
   return Object.assign({ paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)", font: { color: css("--ink"), family: "IBM Plex Sans", size: 12 },
     margin: { l: 56, r: 12, t: 8, b: 44 }, xaxis: { ...ax }, yaxis: { ...ax }, legend: { orientation: "h", y: 1.15, x: 0, font: { color: m, size: 11 } } }, extra); }
 const ax = o => Object.assign({ ...base().xaxis }, o);
+const CHECK_LABEL = { covered_pre: "not imaged before onset", pre_quiet: "source already in aperture", no_catalog_pre: "catalogued before onset", no_spitzer: "Spitzer source present",
+  no_allwise: "AllWISE source present", tier2_rise: "rise not confirmed at tier 2", post_signif: "post-onset flux weak", diff_source: "no difference-image source", offset_quiet: "offset twin not quiet" };
 
 // ---------------- reviews (server-backed, read-only fallback)
-let reviews = [], online = false;
+let reviews = [], online = false, csrf = "", info = { store: "reviews/reviews.jsonl", in_repo: true };
 const latest = () => { const m = {}; reviews.forEach(r => m[r.key] = r); return m; };
 async function loadReviews() {
-  let info = { store: "reviews/reviews.jsonl", in_repo: true };
   try { const r = await fetch("/api/reviews", { cache: "no-store" }); if (!r.ok) throw 0; reviews = await r.json(); online = true;
-    const i = await fetch("/api/info", { cache: "no-store" }); if (i.ok) info = await i.json(); }
+    const i = await fetch("/api/info", { cache: "no-store" }); if (i.ok) { info = await i.json(); csrf = info.csrf || ""; } }
   catch { online = false; }
   $("#srv-dot").className = "dot " + (online ? (info.in_repo ? "ok" : "ro") : "ro");
-  $("#srv-txt").textContent = online ? `saving to ${info.store}${info.in_repo ? "" : " (outside the repo)"} · ${reviews.length} entries` : "read-only: start scripts/serve_catalog.py to save reviews";
+  $("#srv-txt").textContent = online ? `saving to ${info.store}${info.in_repo ? "" : " (outside the repo)"}` : "read-only: start scripts/serve_catalog.py to save reviews";
 }
 async function saveReview(rec) {
-  const r = await fetch("/api/reviews", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(rec) });
+  const r = await fetch("/api/reviews", { method: "POST", headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf }, body: JSON.stringify(rec) });
   const j = await r.json(); if (!r.ok) throw new Error(j.error || "save failed"); reviews.push(j); return j;
 }
 
-// ---------------- stats
-function stats() { const L = latest(), G = C.gallery, E = C.meta.e7b, d = E.rates?.rise2;
-  const n = k => G.filter(g => L[g.key]?.decision === k).length;
-  $("#stats").innerHTML = [["Clumps in catalog", C.meta.n_catalog.toLocaleString("en-US")], ["Gallery candidates", G.filter(g => g.arm === "on").length],
-    ["Offset controls", G.filter(g => g.arm === "off").length], ["Birth-compatible (machine)", G.filter(g => g.machine_verdict === "birth-compatible").length],
-    ["Approved", n("approve")], ["Refuted", n("refute")], ["Unsure", n("unsure")], ["Not reviewed", G.filter(g => !L[g.key]).length],
-    ["E7b verdict", E.verdict ?? "–"], ["Rise rate on − off", d ? `${(1e4 * d.diff).toFixed(1)}×10⁻⁴ (${(1e4 * d.diff_ci95[0]).toFixed(1)} to ${(1e4 * d.diff_ci95[1]).toFixed(1)})` : "–"]]
-    .map(([k, v]) => `<div class="stat"><div class="v">${esc(v)}</div><div class="k">${esc(k)}</div></div>`).join(""); }
+// ---------------- facts + progress
+function facts() { const L = latest(), G = C.gallery, on = G.filter(g => g.arm === "on"), E = C.meta.e7b, d = E.rates?.rise2;
+  const n = k => G.filter(g => L[g.key]?.decision === k).length, done = G.filter(g => L[g.key]).length;
+  $("#facts").innerHTML = [["Clump candidates", on.length, true], ["Offset controls", G.length - on.length, true],
+    ["Birth-compatible by machine", on.filter(g => g.machine_verdict === "birth-compatible").length], ["Clumps in catalog", C.meta.n_catalog.toLocaleString("en-US")],
+    ["E7b verdict", E.verdict ?? "–"], ["Rise rate, clumps − offsets", d ? `${(1e4 * d.diff).toFixed(0)}×10⁻⁴ [${(1e4 * d.diff_ci95[0]).toFixed(0)}, ${(1e4 * d.diff_ci95[1]).toFixed(0)}]` : "–"]]
+    .map(([k, v, lead]) => `<div class="${lead ? "lead" : ""}"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join("");
+  $("#tally").innerHTML = [["Approved", n("approve"), "--good"], ["Refuted", n("refute"), "--bad"], ["Unsure", n("unsure"), "--warn"], ["Not reviewed", G.length - done, "--line"]]
+    .map(([k, v, c]) => `<span><i style="background:var(${c})"></i>${k} <b class="mono" style="color:var(--ink)">${v}</b></span>`).join("");
+  $("#prog-txt").textContent = `reviewed ${done}/${G.length}`; $("#prog-bar").style.width = `${100 * done / Math.max(G.length, 1)}%`; }
 
 // ---------------- gallery
 let armF = "on";
@@ -207,21 +276,26 @@ $("#f-arm").onclick = e => { const b = e.target.closest("button"); if (!b) retur
 ["#f-verdict", "#f-review", "#f-sort", "#f-q"].forEach(s => $(s).addEventListener("input", gallery));
 const vclass = v => v.startsWith("control") ? "control" : v === "birth-compatible" ? "compat" : "refuted";
 const vshort = v => v.startsWith("control") ? "control" : v === "birth-compatible" ? "birth-compatible" : "refuted by checks";
+const firstFail = v => { const m = v.match(/refuted: ([a-z_]+)/); return m ? (CHECK_LABEL[m[1]] || m[1]) : (v === "birth-compatible" ? "passes every check" : ""); };
 function filtered() { const L = latest(), q = $("#f-q").value.trim().toLowerCase(), fv = $("#f-verdict").value, fr = $("#f-review").value, so = $("#f-sort").value;
-  let G = C.gallery.filter(g => (armF === "all" || g.arm === armF) && (!q || g.designation.toLowerCase().includes(q) || String(g.tid) === q)
+  const G = C.gallery.filter(g => (armF === "all" || g.arm === armF) && (!q || g.designation.toLowerCase().includes(q) || String(g.tid) === q)
     && (!fv || vclass(g.machine_verdict) === fv) && (!fr || (fr === "none" ? !L[g.key] : L[g.key]?.decision === fr)));
   const key = { passes: g => -g.passes, dbic: g => -(g.dbic ?? 0), onset: g => g.onset_year ?? 9999, tid: g => g.tid }[so];
   return G.sort((a, b) => key(a) - key(b)); }
 function gallery() { const L = latest(), G = filtered();
-  $("#gallery").innerHTML = G.map(g => { const r = L[g.key], n = g.n_epochs || 1;
+  $("#gallery").innerHTML = G.map((g, i) => { const r = L[g.key], n = g.n_epochs || 1;
     const bg = kind => g.thumb ? `background-image:url(img/${g.key}/neowise_${kind}.png);background-size:${n * 100}% 100%;background-position:100% 0` : "";
-    return `<button class="card" type="button" data-key="${g.key}"><div class="thumb"><div style="${bg("stack")}"></div><div style="${bg("diff")}"></div></div>
+    return `<button class="card ${r ? "done " + r.decision : ""}" type="button" data-key="${g.key}" style="--i:${i}"><div class="thumb"><div style="${bg("stack")}"></div><div style="${bg("diff")}"></div><span class="yr">2024</span></div>
       <div class="body"><span class="t">${esc(g.designation)}${g.arm === "off" ? " +60″" : ""}</span>
       <div class="pills"><span class="pill ${vclass(g.machine_verdict)}">${vshort(g.machine_verdict)}</span><span class="pill ${r ? r.decision : "none"}">${r ? r.decision : "not reviewed"}</span></div>
-      <div class="kv"><span>tid <b>${g.tid}</b></span><span>ΔBIC <b>${g.dbic ? Math.round(g.dbic).toLocaleString("en-US") : "–"}</b></span><span>onset <b>${g.onset_year ?? "–"}</b></span><span>checks <b>${g.passes}/8</b></span></div></div></button>`; }).join("")
-    || `<p class="muted">No candidates match these filters.</p>`;
-  stats(); }
+      <div class="why">${esc(firstFail(g.machine_verdict))}</div>
+      <div class="kv"><span>tid <b>${g.tid}</b></span><span>ΔBIC <b>${g.dbic ? Math.round(g.dbic).toLocaleString("en-US") : "–"}</b></span><span>onset <b>${g.onset_year ?? "–"}</b></span><span>checks <b>${g.passes}/${g.n_checks}</b></span></div></div></button>`; }).join("")
+    || `<div class="empty"><b>Nothing matches these filters</b><span>Widen the machine-verdict or review-status filter, or clear the search.</span></div>`;
+  facts(); }
 $("#gallery").onclick = e => { const b = e.target.closest(".card"); if (b) openDetail(b.dataset.key, filtered().map(g => g.key)); };
+function nextUnreviewed(from) { const L = latest(), list = filtered().map(g => g.key); const start = from ? list.indexOf(from) + 1 : 0;
+  for (let k = 0; k < list.length; k++) { const key = list[(start + k) % list.length]; if (!L[key]) return { key, list }; } return null; }
+$("#btn-next").onclick = () => { const n = nextUnreviewed(null); if (n) openDetail(n.key, n.list); else $("#btn-next").textContent = "All reviewed"; };
 
 // ---------------- catalog table
 const COLS = C.columns, ROWS = C.rows, ci = Object.fromEntries(COLS.map((c, i) => [c, i]));
@@ -229,7 +303,7 @@ const SHOW = [["tid", "tid", 1], ["designation", "Designation"], ["l", "ℓ (deg
   ["lbol", "L (L☉)", 1], ["e1_on", "E1 class"], ["spicy_host", "SPICY host"], ["e7b", "E7b stratum"], ["rise", "E7b rise"], ["key", "Gallery"]];
 [...new Set(ROWS.map(r => r[ci.e1_on]))].sort().forEach(v => $("#c-e1").insertAdjacentHTML("beforeend", `<option value="${esc(v)}">${esc(v)}</option>`));
 let sortC = "tid", sortD = 1, page = 0; const PER = 100;
-$("#c-head").innerHTML = "<tr>" + SHOW.map(([c, l, n]) => `<th data-c="${c}" class="${n ? "num" : ""}">${l}</th>`).join("") + "</tr>";
+function head() { $("#c-head").innerHTML = "<tr>" + SHOW.map(([c, l, n]) => `<th data-c="${c}" class="${n ? "num" : ""}" tabindex="0" ${sortC === c ? `aria-sort="${sortD > 0 ? "ascending" : "descending"}"` : ""}>${l}</th>`).join("") + "</tr>"; }
 $("#c-head").onclick = e => { const th = e.target.closest("th"); if (!th) return; const c = th.dataset.c; sortD = sortC === c ? -sortD : 1; sortC = c; page = 0; table(); };
 ["#c-q", "#c-e1", "#c-rise", "#c-spicy"].forEach(s => $(s).addEventListener("input", () => { page = 0; table(); }));
 $("#c-prev").onclick = () => { page = Math.max(0, page - 1); table(); }; $("#c-next").onclick = () => { page++; table(); };
@@ -237,18 +311,18 @@ function crows() { const q = $("#c-q").value.trim().toLowerCase(), e1 = $("#c-e1
   const R = ROWS.filter(r => (!q || r[ci.designation].toLowerCase().includes(q) || String(r[ci.tid]) === q) && (!e1 || r[ci.e1_on] === e1)
     && (!ri || (ri === "measured" ? r[ci.e7b] : ri === "tier1" ? r[ci.rise] : r[ci.rise] === "tier2")) && (!sp || String(+r[ci.spicy_host]) === sp));
   const i = ci[sortC]; return R.sort((a, b) => (a[i] > b[i] ? 1 : a[i] < b[i] ? -1 : 0) * sortD); }
-function table() { const R = crows(), pages = Math.max(1, Math.ceil(R.length / PER)); page = Math.min(page, pages - 1);
+function table() { head(); const R = crows(), pages = Math.max(1, Math.ceil(R.length / PER)); page = Math.min(page, pages - 1);
   $("#c-count").textContent = `${R.length.toLocaleString("en-US")} of ${ROWS.length.toLocaleString("en-US")} clumps`;
-  $("#c-page").textContent = `page ${page + 1} of ${pages}`;
+  $("#c-page").textContent = `page ${page + 1} of ${pages}`; $("#c-empty").hidden = R.length > 0; $("#c-prev").disabled = page === 0; $("#c-next").disabled = page >= pages - 1;
   $("#c-body").innerHTML = R.slice(page * PER, page * PER + PER).map(r => `<tr class="${r[ci.key] ? "link" : ""}" data-key="${r[ci.key] || ""}">` + SHOW.map(([c, , n]) => {
     let v = r[ci[c]]; if (c === "spicy_host") v = v ? "yes" : ""; if (c === "key") v = v ? "open →" : "";
     return `<td class="${n ? "num mono" : ""}">${esc(v ?? "–")}</td>`; }).join("") + "</tr>").join(""); }
 $("#c-body").onclick = e => { const tr = e.target.closest("tr.link"); if (tr) openDetail(tr.dataset.key, crows().filter(r => r[ci.key]).map(r => r[ci.key])); };
 
 // ---------------- review log
-function log() { $("#log-body").innerHTML = reviews.slice().reverse().map(r => `<tr><td class="mono">${esc(r.time)}</td><td class="mono"><a href="#${esc(r.key)}" data-key="${esc(r.key)}">${esc(r.key)}</a></td>
-  <td><span class="pill ${esc(r.decision)}">${esc(r.decision)}</span></td><td>${esc(r.reviewer)}</td><td class="small muted">${esc(r.machine_verdict)}</td><td style="white-space:normal;min-width:320px">${esc(r.reasoning)}</td></tr>`).join("")
-  || `<tr><td colspan="6" class="muted">No reviews yet.</td></tr>`; }
+function log() { $("#log-empty").hidden = reviews.length > 0;
+  $("#log-body").innerHTML = reviews.slice().reverse().map(r => `<tr><td class="mono">${esc(r.time)}</td><td class="mono"><a href="#${esc(r.key)}" data-key="${esc(r.key)}">${esc(r.key)}</a></td>
+  <td><span class="pill ${esc(r.decision)}">${esc(r.decision)}</span></td><td>${esc(r.reviewer)}</td><td class="small muted">${esc(r.machine_verdict)}</td><td style="white-space:normal;min-width:320px">${esc(r.reasoning)}</td></tr>`).join(""); }
 $("#log-body").onclick = e => { const a = e.target.closest("a[data-key]"); if (a) { e.preventDefault(); openDetail(a.dataset.key, [a.dataset.key]); } };
 
 // ---------------- tabs
@@ -259,71 +333,75 @@ Object.keys(views).forEach(k => $(`#tab-${k}`).onclick = () => { Object.entries(
 // ---------------- detail
 const cache = {}; let nav = [], cur = null, timer = null;
 async function getDetail(key) { if (!cache[key]) { const r = await fetch(`catalog/${key}.json`, { cache: "no-store" }); if (!r.ok) throw new Error(`no detail file for ${key}`); cache[key] = await r.json(); } return cache[key]; }
+const skeleton = () => `<div class="dcols"><div class="evidence"><div class="sk" style="height:250px"></div><div class="sk" style="height:220px"></div><div class="sk" style="height:180px"></div></div><div class="rail"><div class="sk" style="height:260px"></div><div class="sk" style="height:220px"></div></div></div>`;
 async function openDetail(key, list) {
   nav = list && list.length ? list : [key]; cur = key; const dlg = $("#detail"); if (!dlg.open) dlg.showModal();
-  $("#d-body").innerHTML = `<p class="muted">Loading ${esc(key)}…</p>`; clearInterval(timer);
-  let d; try { d = await getDetail(key); } catch (e) { $("#d-body").innerHTML = `<p class="msg err">${esc(e.message)}. Rebuild with research/build_catalog.py.</p>`; return; }
-  renderDetail(d); history.replaceState(null, "", `#${key}`);
+  $("#d-body").innerHTML = skeleton(); $("#d-title").textContent = key; $("#d-pills").innerHTML = ""; clearInterval(timer);
+  let d; try { d = await getDetail(key); } catch (e) { $("#d-body").innerHTML = `<div class="empty"><b>Could not load ${esc(key)}</b><span>${esc(e.message)}. Rebuild with research/build_catalog.py.</span></div>`; return; }
+  renderDetail(d); history.replaceState(null, "", `#${key}`); dlg.scrollTop = 0;
 }
-$("#d-close").onclick = () => { $("#detail").close(); clearInterval(timer); history.replaceState(null, "", location.pathname); };
-$("#detail").addEventListener("close", () => clearInterval(timer));
+$("#d-close").onclick = () => { $("#detail").close(); clearInterval(timer); history.replaceState(null, "", location.pathname); gallery(); };
+$("#detail").addEventListener("close", () => { clearInterval(timer); gallery(); });
 const step = s => { const i = nav.indexOf(cur); if (i < 0) return; const j = i + s; if (j >= 0 && j < nav.length) openDetail(nav[j], nav); };
 $("#d-prev").onclick = () => step(-1); $("#d-next").onclick = () => step(1);
-document.addEventListener("keydown", e => { if (!$("#detail").open || /TEXTAREA|INPUT/.test(document.activeElement.tagName)) return;
-  if (e.key === "ArrowRight") step(1); if (e.key === "ArrowLeft") step(-1); });
+$("#d-nextun").onclick = () => { const n = nextUnreviewed(cur); if (n) openDetail(n.key, n.list); else { $("#d-nextun").textContent = "All reviewed"; } };
+document.addEventListener("keydown", e => { if (!$("#detail").open) return; const typing = /TEXTAREA|INPUT/.test(document.activeElement.tagName);
+  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); $("#rv-form")?.requestSubmit(); return; }
+  if (typing) return;
+  if (e.key === "ArrowRight") step(1); if (e.key === "ArrowLeft") step(-1);
+  if (e.key === "n" || e.key === "N") $("#d-nextun").click();
+  const pick = { a: "approve", r: "refute", u: "unsure" }[e.key.toLowerCase()];
+  if (pick) { const el = $(`#rv-form input[value="${pick}"]`); if (el) { el.checked = true; $("#rv-why").focus(); } } });
 
-function tableHTML(rows, cols) { if (!rows || !rows.length) return `<p class="muted small">None within the search radius.</p>`;
-  return `<div class="tablewrap"><table><thead><tr>${cols.map(c => `<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>${rows.map(r => `<tr>${cols.map(c => `<td class="mono">${esc(typeof r[c] === "number" ? +r[c].toFixed(3) : r[c])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`; }
+function tableHTML(rows, cols) { if (!rows || !rows.length) return `<p class="muted small" style="margin:0">None within the search radius.</p>`;
+  return `<div class="tablewrap"><table><thead><tr>${cols.map(c => `<th style="cursor:default">${esc(c)}</th>`).join("")}</tr></thead><tbody>${rows.map(r => `<tr>${cols.map(c => `<td class="mono">${esc(typeof r[c] === "number" ? +r[c].toFixed(3) : r[c])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`; }
 
 function renderDetail(d) {
-  const L = latest(), r = L[d.key], P = d.props, n = d.epochs.length, arch = d.archive;
+  const L = latest(), r = L[d.key], P = d.props, n = d.epochs.length, arch = d.archive, F = d.forced, t2 = F.tier2;
   $("#d-title").textContent = `${d.designation}${d.arm === "off" ? " (offset control +60″)" : ""}`;
   $("#d-pills").innerHTML = `<span class="pill ${vclass(d.machine_verdict)}">${esc(vshort(d.machine_verdict))}</span><span class="pill ${r ? r.decision : "none"}">${r ? r.decision : "not reviewed"}</span>`;
+  $("#d-pos").textContent = `${nav.indexOf(cur) + 1} of ${nav.length}`;
   const coord = `${d.ra.toFixed(5)} ${d.dec >= 0 ? "+" : ""}${d.dec.toFixed(5)}`;
-  $("#d-body").innerHTML = `
-  <div class="cols">
-    <div class="box"><h3>Machine checklist</h3><p class="small muted">A birth start needs a new source where nothing was before. Every item must pass for the machine to call it birth-compatible.</p>
-      <ul class="check">${d.checklist.map(c => `<li><span class="${c.pass ? "ok" : "no"}">${c.pass ? "✓" : "✗"}</span><span>${esc(c.label)}</span></li>`).join("")}</ul>
-      <div class="kv"><span>verdict <b>${esc(d.machine_verdict)}</b></span></div></div>
-    <div class="box"><h3>Clump and position</h3>
-      <div class="kv"><span>tid <b>${d.tid}</b></span><span>RA Dec <b>${coord}</b></span><span>ℓ b <b>${fmt(P.glon, 3)} ${fmt(P.glat, 3)}</b></span></div>
-      <div class="kv"><span>d <b>${fmt(P.dist)} kpc</b></span><span>M <b>${fmt(P.mass, 1)} M☉</b></span><span>T <b>${fmt(P.temp, 1)} K</b></span><span>L <b>${fmt(P.l_bol, 1)} L☉</b></span><span>70 µm limit <b>${fmt(P.ulim_70, 3)} Jy</b></span></div>
-      <div class="kv"><span>E1 class <b>${esc(d.e1_class)}</b></span><span>E7b stratum <b>${esc(d.stratum ?? "–")}</b></span><span>onset <b>${d.onset_year ?? "–"}</b></span><span>diff-image S/N <b>${fmt(d.diff_snr, 1)}</b></span></div>
-      <div class="kv"><a href="https://simbad.cds.unistra.fr/simbad/sim-coo?Coord=${encodeURIComponent(coord)}&Radius=10&Radius.unit=arcsec" target="_blank" rel="noopener">SIMBAD</a>
+  const H = reviews.filter(x => x.key === d.key).reverse();
+  $("#d-body").innerHTML = `<div class="dcols">
+  <div class="evidence">
+    <div class="sec"><div class="kv"><span>tid <b>${d.tid}</b></span><span>RA Dec <b>${coord}</b></span><span>ℓ b <b>${fmt(P.glon, 3)} ${fmt(P.glat, 3)}</b></span><span>d <b>${fmt(P.dist)} kpc</b></span><span>M <b>${fmt(P.mass, 1)} M☉</b></span><span>T <b>${fmt(P.temp, 1)} K</b></span><span>L <b>${fmt(P.l_bol, 1)} L☉</b></span><span>70 µm limit <b>${fmt(P.ulim_70, 3)} Jy</b></span></div>
+      <div class="kv"><span>E1 class <b>${esc(d.e1_class)}</b></span><span>E7b stratum <b>${esc(d.stratum ?? "–")}</b></span><span>onset <b>${d.onset_year ?? "–"}</b></span><span>diff-image S/N <b>${fmt(d.diff_snr, 1)}</b></span><span>offset twin <b>${esc(d.offset_status ?? "n/a")}</b></span>${d.baseline_flag ? `<span class="pill unsure">negative baseline</span>` : ""}
+        <a href="https://simbad.cds.unistra.fr/simbad/sim-coo?Coord=${encodeURIComponent(coord)}&Radius=10&Radius.unit=arcsec" target="_blank" rel="noopener">SIMBAD</a>
         <a href="https://irsa.ipac.caltech.edu/applications/finderchart/?locstr=${encodeURIComponent(coord)}" target="_blank" rel="noopener">IRSA finder chart</a>
         <a href="https://aladin.cds.unistra.fr/AladinLite/?target=${encodeURIComponent(coord)}&fov=0.05&survey=CDS%2FP%2FunWISE%2Fcolor-W2-W1W2-W1" target="_blank" rel="noopener">Aladin Lite</a></div></div>
-  </div>
-  <div class="cols">
-    <div class="box"><h3>Forced photometry (every W2 frame, masked; per visit)</h3><div class="plot" id="p-forced"></div>
-      <p class="cap">W2 flux per ~6-month visit at zeropoint 22.5 (m = 22.5 − 2.5 log₁₀ f; 5.5″ aperture, not aperture-corrected), errors including the calibrated systematic floor. Dotted: fitted onset. ${d.forced.tier2 ? `Tier 2 (mask + uncertainty images): ΔBIC ${Math.round(d.forced.tier2.dbic)}, post ${fmt(d.forced.tier2.post_sig, 1)}σ, pre ${fmt(d.forced.tier2.pre_sig, 1)}σ; ${d.forced.confirmed ? "confirmed" : "not confirmed"}.` : "No tier-2 remeasurement."}</p></div>
-    <div class="box"><h3>NEOWISE W2 images per visit</h3>
+    <div class="sec"><h3>NEOWISE W2 images per visit</h3>
       <div class="controls"><button type="button" id="p-play">Play</button><input type="range" id="p-slider" min="0" max="${Math.max(n - 1, 0)}" value="0" aria-label="Epoch"><span class="year" id="p-year"></span></div>
-      <div class="pair"><div class="sprite" id="p-stack"></div><div class="sprite" id="p-diff"></div></div>
-      <p class="cap">Left: median stack of single exposures, 96″ field, one brightness scale for all epochs. Right: minus the 2014–15 reference (red brighter, blue fainter). Circle: target position.</p></div>
+      <div class="pair" style="max-width:560px"><div class="sprite" id="p-stack"></div><div class="sprite" id="p-diff"></div></div>
+      <p class="cap" style="margin:0">Left: median stack of single exposures, 96″ field, one brightness scale for all epochs. Right: minus the 2014–15 reference (red brighter, blue fainter). Circle: target.</p></div>
+    <div class="sec"><h3>Forced photometry, every W2 frame, masked, per visit</h3><div class="plot" id="p-forced"></div>
+      <p class="cap" style="margin:0">W2 flux per ~6-month visit at zeropoint 22.5 (m = 22.5 − 2.5 log₁₀ f; 5.5″ aperture, not aperture-corrected), errors include the calibrated systematic floor. Dotted: fitted onset. ${t2 ? `Tier 2: ΔBIC ${Math.round(t2.dbic)}, pre ${fmt(t2.pre_sig, 1)}σ, post ${fmt(t2.post_sig, 1)}σ, ${F.confirmed ? "confirmed" : "not confirmed"}.` : "No tier-2 remeasurement."}</p></div>
+    <div class="sec"><h3>NEOWISE catalog detections within 6″</h3><div class="plot" id="p-e1"></div>
+      <p class="cap" style="margin:0">W2 (Vega mag, brighter up) of every catalog detection, coloured by distance from the target (″); hollow = W2 contamination flag. Lower panel: field detections within 60″ per visit (coverage).</p></div>
+    <div class="sec"><h3>Same position across surveys, 3′ field</h3><div class="thumbs">${d.images.map(im => `<figure><img src="${esc(im.src)}" alt="${esc(im.label)} cutout" loading="lazy"><figcaption class="cap"><b style="color:var(--ink)">${esc(im.label)}</b><br>${esc(im.wl)} · ${esc(im.epoch)}</figcaption></figure>`).join("") || `<p class="muted small">No survey imagery.</p>`}</div></div>
+    <div class="sec"><h3>Archival sources</h3><div class="pair" style="align-items:start">
+      <div><div class="eyebrow">Spitzer GLIMPSE / Vela-Carina (≤6″)</div>${tableHTML(arch.glimpse, ["survey", "mag3_6", "mag4_5", "mag5_8", "mag8_0", "sep"])}
+        <div class="eyebrow" style="margin-top:10px">SPICY YSO candidates (≤10″)</div>${tableHTML(arch.spicy, ["spicy", "class", "alpha", "mag3_6", "mag4_5", "sep"])}</div>
+      <div><div class="eyebrow">AllWISE 2010 (≤6″)</div>${tableHTML(arch.allwise, ["w1mpro", "w2mpro", "w3mpro", "w4mpro", "sep"])}
+        <div class="eyebrow" style="margin-top:10px">MIPSGAL 24 µm (≤6″)</div>${tableHTML(arch.mipsgal, ["mag_24", "fnu_24", "sep"])}
+        <div class="eyebrow" style="margin-top:10px">SIMBAD (≤10″)</div>${tableHTML(arch.simbad, ["main_id", "otype"])}</div></div></div>
   </div>
-  <div class="cols">
-    <div class="box"><h3>NEOWISE catalog detections within 6″</h3><div class="plot" id="p-e1"></div>
-      <p class="cap">W2 (Vega mag, brighter up) of every catalog detection, coloured by distance from the target (″); hollow = W2 contamination flag. Lower panel: field detections within 60″ per visit (coverage).</p></div>
-    <div class="box"><h3>Same position across surveys (3′ field)</h3><div class="thumbs">${d.images.map(im => `<figure><img src="${esc(im.src)}" alt="${esc(im.label)} cutout" loading="lazy"><figcaption class="cap"><b style="color:var(--ink)">${esc(im.label)}</b><br>${esc(im.wl)} · ${esc(im.epoch)}</figcaption></figure>`).join("") || `<p class="muted small">No survey imagery.</p>`}</div></div>
-  </div>
-  <div class="box"><h3>Archival sources</h3><div class="cols">
-    <div><div class="eyebrow">Spitzer GLIMPSE / Vela-Carina (≤6″)</div>${tableHTML(arch.glimpse, ["survey", "mag3_6", "mag4_5", "mag5_8", "mag8_0", "sep"])}
-      <div class="eyebrow" style="margin-top:10px">SPICY YSO candidates (≤10″)</div>${tableHTML(arch.spicy, ["spicy", "class", "alpha", "mag3_6", "mag4_5", "sep"])}</div>
-    <div><div class="eyebrow">AllWISE 2010 (≤6″)</div>${tableHTML(arch.allwise, ["w1mpro", "w2mpro", "w3mpro", "w4mpro", "sep"])}
-      <div class="eyebrow" style="margin-top:10px">MIPSGAL 24 µm (≤6″)</div>${tableHTML(arch.mipsgal, ["mag_24", "fnu_24", "sep"])}
-      <div class="eyebrow" style="margin-top:10px">SIMBAD (≤10″)</div>${tableHTML(arch.simbad, ["main_id", "otype"])}</div></div></div>
-  <div class="cols">
+  <aside class="rail">
+    <div class="box"><h3>Machine checklist · ${d.checklist.filter(c => c.pass).length}/${d.checklist.length}</h3>
+      <ul class="check">${d.checklist.map(c => `<li><span class="${c.pass ? "ok" : "no"}">${c.pass ? "✓" : "✗"}</span><span>${esc(c.label)}</span></li>`).join("")}</ul>
+      <div class="kv"><span>verdict <b>${esc(d.machine_verdict)}</b></span></div></div>
     <form class="box form" id="rv-form"><h3>Your decision</h3>
       <div class="choices" role="radiogroup" aria-label="Decision">
-        ${[["approve", "Approve: birth start"], ["refute", "Refute"], ["unsure", "Unsure"]].map(([v, l]) => `<label class="choice"><input type="radio" name="decision" value="${v}" required> ${l}</label>`).join("")}</div>
-      <div class="choices">${["pre-existing source", "blend / confusion", "artefact", "extinction change", "outburst of known YSO", "genuine new source"].map(t => `<label class="choice small"><input type="checkbox" name="tags" value="${t}"> ${t}</label>`).join("")}</div>
-      <label for="rv-why" class="small muted">Reasoning (required, at least 10 characters)</label>
+        ${[["approve", "Approve"], ["refute", "Refute"], ["unsure", "Unsure"]].map(([v, l]) => `<label class="choice"><input type="radio" name="decision" value="${v}" required>${l}</label>`).join("")}</div>
+      <div class="tags">${["pre-existing source", "blend / confusion", "artefact", "extinction change", "outburst of known YSO", "genuine new source"].map(t => `<label><input type="checkbox" name="tags" value="${t}">${t}</label>`).join("")}</div>
+      <label for="rv-why" class="small muted">Reasoning · required, at least 10 characters</label>
       <textarea id="rv-why" name="reasoning" minlength="10" maxlength="5000" required placeholder="What in the evidence supports your decision?"></textarea>
-      <div class="controls"><label for="rv-who" class="small muted">Reviewer</label><input type="text" id="rv-who" name="reviewer" maxlength="60" required style="flex:1">
-        <button type="submit" id="rv-save">Save decision</button></div>
-      <div class="msg" id="rv-msg"></div></form>
-    <div class="box"><h3>Review history for this candidate</h3><div class="hist" id="rv-hist"></div></div>
-  </div>`;
+      <label for="rv-who" class="small muted">Reviewer</label>
+      <div class="controls"><input type="text" id="rv-who" name="reviewer" maxlength="60" required style="flex:1"><button type="submit" id="rv-save" class="primary">Save</button></div>
+      <div class="msg" id="rv-msg"></div>
+      <div class="hint"><span><kbd>A</kbd><kbd>R</kbd><kbd>U</kbd> choose</span><span><kbd>Ctrl</kbd>+<kbd>Enter</kbd> save</span><span><kbd>N</kbd> next unreviewed</span></div></form>
+    <div class="box"><h3>History · ${H.length}</h3><div class="hist" id="rv-hist">${H.map(x => `<div><span class="pill ${esc(x.decision)}">${esc(x.decision)}</span> <span class="mono small">${esc(x.time)} · ${esc(x.reviewer)}</span>${x.tags?.length ? `<div class="small muted">${x.tags.map(esc).join(" · ")}</div>` : ""}<div>${esc(x.reasoning)}</div></div>`).join("") || `<p class="muted small" style="margin:0">No decisions yet.</p>`}</div></div>
+  </aside></div>`;
   // images
   const slider = $("#p-slider"); const show = () => { const i = +slider.value; ["stack", "diff"].forEach(k => { const el = $(`#p-${k}`);
     el.style.backgroundImage = n ? `url(img/${d.key}/neowise_${k}.png)` : "none"; el.style.backgroundSize = `${n * 100}% 100%`; el.style.backgroundPosition = n > 1 ? `${i / (n - 1) * 100}% 0` : "0 0"; });
@@ -332,28 +410,28 @@ function renderDetail(d) {
   $("#p-play").onclick = () => { if (timer) { clearInterval(timer); timer = null; $("#p-play").textContent = "Play"; return; }
     timer = setInterval(() => { slider.value = (+slider.value + 1) % Math.max(n, 1); show(); }, 450); $("#p-play").textContent = "Pause"; };
   show();
-  // forced photometry
-  const F = d.forced, tr = [{ type: "scatter", mode: "markers", name: "forced W2 flux", x: F.year, y: F.flux, error_y: { type: "data", array: F.err, color: css("--muted"), thickness: 1 }, marker: { size: 7, color: css("--w2") } }];
-  Plotly.react("p-forced", tr, base({ xaxis: ax({ title: { text: "year" }, range: [2013.8, 2024.8] }), yaxis: { ...base().yaxis, title: { text: "W2 flux (ZP 22.5)" } },
-    shapes: d.onset_year ? [{ type: "line", x0: d.onset_year, x1: d.onset_year, y0: 0, y1: 1, yref: "paper", line: { color: css("--accent"), dash: "dot" } }] : [] }), cfg);
+  // plots
+  Plotly.react("p-forced", [{ type: "scatter", mode: "markers", name: "forced W2 flux", x: F.year, y: F.flux, error_y: { type: "data", array: F.err, color: css("--muted"), thickness: 1 }, marker: { size: 7, color: css("--w2") } }],
+    base({ xaxis: ax({ title: { text: "year" }, range: [2013.8, 2024.8] }), yaxis: { ...base().yaxis, title: { text: "W2 flux (ZP 22.5)" } },
+      shapes: d.onset_year ? [{ type: "line", x0: d.onset_year, x1: d.onset_year, y0: 0, y1: 1, yref: "paper", line: { color: css("--accent"), dash: "dot" } }] : [] }), cfg);
   const E1 = d.e1_rows, cov = arch.coverage;
-  Plotly.react("p-e1", [{ type: "scatter", mode: "markers", x: E1.t, y: E1.w2, text: E1.sep.map((s, i) => `${s}″ SNR ${E1.snr[i]} flag ${E1.flag[i]}`),
+  Plotly.react("p-e1", [{ type: "scatter", mode: "markers", x: E1.t, y: E1.w2, text: E1.sep.map((s, i) => `${s}″ SNR ${E1.snr[i] ?? "–"} flag ${E1.flag[i]}`),
       marker: { size: 6, color: E1.sep, cmin: 0, cmax: 6, colorscale: [[0, css("--w2")], [1, css("--w1")]], symbol: E1.flag.map(f => f === "0" ? "circle" : "circle-open"),
         colorbar: { title: { text: "sep (″)", font: { size: 11, color: css("--muted") } }, thickness: 8, len: 0.7, y: 0.62, tickfont: { color: css("--muted"), size: 10 } } }, hovertemplate: "%{x:.2f}: W2 %{y:.2f} · %{text}<extra></extra>", showlegend: false },
     { type: "bar", x: cov.map((_, v) => 2013.95 + (v + 0.5) * 0.5), y: cov, yaxis: "y2", marker: { color: css("--line") }, showlegend: false, hovertemplate: "%{x}: %{y} field dets<extra></extra>" }],
     base({ xaxis: ax({ title: { text: "year" }, range: [2013.8, 2024.8] }), yaxis: { ...base().yaxis, title: { text: "W2 (mag)" }, autorange: "reversed", domain: [0.28, 1] },
       yaxis2: { ...base().yaxis, domain: [0, 0.2], title: { text: "cov" } } }), cfg);
-  // reviews
-  const H = reviews.filter(x => x.key === d.key).reverse();
-  $("#rv-hist").innerHTML = H.map(x => `<div><span class="pill ${esc(x.decision)}">${esc(x.decision)}</span> <span class="mono small">${esc(x.time)} · ${esc(x.reviewer)}</span>${x.tags?.length ? `<div class="small muted">${x.tags.map(esc).join(" · ")}</div>` : ""}<div>${esc(x.reasoning)}</div></div>`).join("") || `<p class="muted small">No decisions yet.</p>`;
+  // review form
   let who = ""; try { who = localStorage.getItem("sb-reviewer") || ""; } catch {}
   $("#rv-who").value = who;
-  if (!online) { $("#rv-save").disabled = true; $("#rv-msg").className = "msg err"; $("#rv-msg").textContent = "Read-only: start the local server (scripts/serve_catalog.py) to save decisions."; }
+  if (!online) { $("#rv-save").disabled = true; $("#rv-msg").className = "msg err"; $("#rv-msg").textContent = "Read-only: start scripts/serve_catalog.py to save decisions."; }
   $("#rv-form").onsubmit = async e => { e.preventDefault(); const fd = new FormData(e.target);
     const rec = { key: d.key, decision: fd.get("decision"), reasoning: (fd.get("reasoning") || "").trim(), reviewer: (fd.get("reviewer") || "").trim(), tags: fd.getAll("tags"), machine_verdict: d.machine_verdict };
+    if (!rec.decision) { $("#rv-msg").className = "msg err"; $("#rv-msg").textContent = "Choose approve, refute or unsure first."; return; }
     try { localStorage.setItem("sb-reviewer", rec.reviewer); } catch {}
-    try { await saveReview(rec); renderDetail(d); gallery(); $("#rv-msg").className = "msg okm"; $("#rv-msg").textContent = `Saved: ${rec.decision} (${new Date().toLocaleTimeString()}).`; }
-    catch (err) { $("#rv-msg").className = "msg err"; $("#rv-msg").textContent = err.message; } };
+    $("#rv-save").disabled = true; $("#rv-save").textContent = "Saving…";
+    try { await saveReview(rec); renderDetail(d); gallery(); $("#rv-msg").className = "msg okm"; $("#rv-msg").textContent = `Saved ${rec.decision} at ${new Date().toLocaleTimeString()}. Press N for the next unreviewed.`; }
+    catch (err) { $("#rv-save").disabled = false; $("#rv-save").textContent = "Save"; $("#rv-msg").className = "msg err"; $("#rv-msg").textContent = err.message; } };
 }
 
 // ---------------- boot

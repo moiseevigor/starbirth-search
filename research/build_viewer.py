@@ -284,6 +284,31 @@ def _stratum_reading(j: dict) -> str:
             f"difference is driven by it.")
 
 
+def _validation_reading(j: dict) -> str:
+    """Image-level injection and tier-1 negative audit (research/e7b_validation.py), if run."""
+    out = ""
+    ii = j.get("injection_image")
+    if ii:
+        rec = {r["mag"]: r for r in ii["tier1"]}
+        m50 = next((m for m in sorted(rec) if rec[m]["recovered"] >= 0.5), None)
+        out += (f" Image-level validation: PSF sources injected into the frames of {ii['n_positions']} clump positions "
+                f"and run through the full photometry -> change-point -> threshold chain recover 50% at aperture "
+                f"W2 ~ {m50 if m50 is not None else '>' + str(max(rec))}; " + "; ".join(
+                    f"{m}: {100 * rec[m]['recovered']:.0f}%" for m in sorted(rec)) + ".")
+        if ii.get("tier2"):
+            out += " Tier 2 (mask + uncertainty) on a subsample: " + "; ".join(
+                f"{r['mag']}: {100 * r['recovered']:.0f}% (n={r['n']})" for r in ii["tier2"]) + "."
+        if ii.get("diff_gate"):
+            out += " Difference-image gate (>= 5 sigma) on injected sources: " + "; ".join(
+                f"{r['mag']}: {100 * r['passed']:.0f}%" for r in ii["diff_gate"]) + "."
+    na = j.get("negative_audit")
+    if na:
+        out += (f" Tier-1 negative audit: {na['n']} random tier-1 negatives remeasured with mask + uncertainty images; "
+                f"{na['became_rise']} cross the threshold at tier 2 (screening miss rate "
+                f"{100 * na['became_rise'] / max(na['n'], 1):.1f}%).")
+    return out
+
+
 def _catalog_reading() -> str:
     """How many candidates pass the full 8-point archival checklist (from the review catalog, if built)."""
     f = ROOT / "viewer" / "catalog" / "index.js"
@@ -380,7 +405,9 @@ def phases() -> list[dict]:
         r1, r2 = j["rates"]["rise1"], j["rates"]["rise2"]
         e7b["verdict"] = j["verdict"]
         fn = sum(1 for r in j["rises"] if r["arm"] == "on" and r["confirmed"] and (r["tier2"] or {}).get("pre_sig") is not None
-                 and r["tier2"]["pre_sig"] < 3 and (r["tier2"]["post_sig"] or 0) >= 5)
+                 and abs(r["tier2"]["pre_sig"]) < 3 and (r["tier2"]["post_sig"] or 0) >= 5)
+        neg = sum(1 for r in j["rises"] if r["arm"] == "on" and r["confirmed"] and (r["tier2"] or {}).get("pre_sig") is not None
+                  and r["tier2"]["pre_sig"] <= -3)
         e7b["result"] = (f"Threshold delta-BIC {j['threshold_dbic']:.0f}; floor s_abs = {j['floor']['s_abs']:.0f}, "
                          f"s_rel = {j['floor']['s_rel']:.3f}. Population-weighted rise rate (tier 2): clumps "
                          f"{1e4 * r2['on']:.1f}e-4 vs offsets {1e4 * r2['off']:.1f}e-4, difference {1e4 * r2['diff']:.1f}e-4 "
@@ -388,27 +415,34 @@ def phases() -> list[dict]:
                          f"{1e4 * r1['diff']:.1f}e-4 ({1e4 * r1['diff_ci95'][0]:.1f} to {1e4 * r1['diff_ci95'][1]:.1f}). "
                          + " ".join(f"{s['stratum']}: {s['on'][0]}/{s['on'][1]} vs {s['off'][0]}/{s['off'][1]} "
                                     f"(Fisher p = {s['fisher_p_one_sided']:.3f})." for s in j["strata"])
-                         + f" Clump rises with pre < 3 sigma and post >= 5 sigma (tier 2): {fn}; each is in the review desk."
-                         + _stratum_reading(j) + _catalog_reading())
+                         + f" Clump rises with a pre-onset flux consistent with zero (|pre| < 3 sigma) and post >= 5 sigma "
+                           f"(tier 2): {fn}; {neg} more have a strongly negative baseline (<= -3 sigma), i.e. a failed sky "
+                           f"model rather than an empty position, and are flagged unusable. Each is in the review desk."
+                         + _stratum_reading(j) + _validation_reading(j) + _catalog_reading())
         e7b["data"] = j
     f8 = A / "e8" / "extinction_budget.json"
     e8 = next(p for p in ph if p["id"] == "E8")
     if f8.exists():
         j = json.loads(f8.read_text())
         pl = {p["L"]: p for p in j["per_lum"]}
+        def rule(L):
+            d0, d1 = pl[L]["frac_detectable_no_ext"], pl[L]["frac_detectable_clump_ext"]
+            if d0 < 0.5:
+                return f"{L:g} L_sun: distance alone leaves {100 * d0:.0f}% detectable (H_dist holds; clump extinction -> {100 * d1:.0f}%)"
+            if d1 < 0.5:
+                return (f"{L:g} L_sun: distance alone leaves {100 * d0:.0f}% detectable but the clump column flips the majority "
+                        f"below threshold ({100 * d1:.0f}%; H_clump holds)")
+            return f"{L:g} L_sun: mostly detectable even after clump extinction ({100 * d0:.0f}% -> {100 * d1:.0f}%; neither hides it)"
         e8["result"] = (f"{j['n']:,} prestellar clumps: median clump column A_V = {j['a_v_full_pct']['50']:.0f} "
                         f"(10-90%: {j['a_v_full_pct']['10']:.0f}-{j['a_v_full_pct']['90']:.0f}), i.e. A_4.5 at the "
                         f"centre {j['a45_centre_pct']['50']:.2f} mag (90th pct {j['a45_centre_pct']['90']:.1f}). "
-                        f"H_clump refuted, H_dist confirmed: with zero extinction only "
-                        f"{100 * pl[5.0]['frac_detectable_no_ext']:.0f}% of clumps are close enough for a 5 L_sun Class 0 "
-                        f"source to reach W2 = 14.3 (median W2 = {pl[5.0]['w2_med_no_ext']:.1f}); clump extinction "
-                        f"lowers that to {100 * pl[5.0]['frac_detectable_clump_ext']:.0f}%. For 25 L_sun: "
-                        f"{100 * pl[25.0]['frac_detectable_no_ext']:.0f}% -> {100 * pl[25.0]['frac_detectable_clump_ext']:.0f}%; "
-                        f"for 100 L_sun: {100 * pl[100.0]['frac_detectable_clump_ext']:.0f}%, an upper bound that sits above "
+                        "Verdicts are luminosity-conditional (decision rule: which step first pushes the majority of "
+                        "clumps below W2 = 14.3): " + "; ".join(rule(L) for L in sorted(pl)) + ". "
+                        f"The 100 L_sun figure ({100 * pl[100.0]['frac_detectable_clump_ext']:.0f}%) is an upper bound above "
                         f"the 26% W2 visibility measured in E-1B for the youngest protostellar clumps (median L_bol ~ 100 "
-                        f"L_sun), as expected since geometry, multiplicity and inner-envelope extinction are not modelled. The "
-                        f"dominant effect is intrinsic faintness at 4.6 um at kpc distances; the clump column is a "
-                        f"factor ~2, and the inner envelope (unresolved by Herschel) is on top of both.")
+                        f"L_sun), as expected since geometry, multiplicity and inner-envelope extinction are not modelled. "
+                        "So: for the faint newborns the collapse models predict (<= 5 L_sun) distance alone hides them; "
+                        "for 25 L_sun the clump column is decisive; the inner envelope is on top of both in every case.")
         e8["data"] = j
     return ph
 

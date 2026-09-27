@@ -23,3 +23,12 @@ def test_valid_review_normalised():
 def test_invalid_reviews_rejected(bad):
     with pytest.raises(ValueError):
         sc.validate(bad)
+
+
+def test_request_checks_reject_foreign_pages():
+    ok = {"Content-Type": "application/json", "Origin": "http://127.0.0.1:8792", "Host": "127.0.0.1:8792", "X-CSRF-Token": "tok"}
+    assert sc.check_request(ok, 8792, "tok") is None
+    assert "content type" in sc.check_request({**ok, "Content-Type": "text/plain"}, 8792, "tok")
+    assert "cross-origin" in sc.check_request({**ok, "Origin": "http://evil.example"}, 8792, "tok")
+    assert "Host" in sc.check_request({**ok, "Host": "evil.example"}, 8792, "tok")
+    assert "CSRF" in sc.check_request({**ok, "X-CSRF-Token": "wrong"}, 8792, "tok")

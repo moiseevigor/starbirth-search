@@ -90,7 +90,18 @@ def cutout(fr, ra, dec, kind="int") -> bytes | None:
     return b
 
 
-def light_curve(ra, dec, full=False) -> dict:
+PSF_SIGMA_PX = 6.4 / 2.355 / 2.75   # W2 PSF FWHM 6.4" (Wright+2010) on 2.75"/px L1b frames
+
+
+def inject_psf(img: np.ndarray, x: float, y: float, flux_dn: float, sigma_px: float = PSF_SIGMA_PX) -> np.ndarray:
+    """Return img plus a Gaussian point source of total flux flux_dn centred at pixel (x, y)."""
+    yy, xx = np.indices(img.shape)
+    g = np.exp(-((xx - x) ** 2 + (yy - y) ** 2) / (2 * sigma_px**2))
+    return img + flux_dn * g / (2 * np.pi * sigma_px**2)
+
+
+def light_curve(ra, dec, full=False, inject=None) -> dict:
+    """inject=(flux_zp, onset_visit): add a PSF of that ZP-22.5 flux to every frame from onset_visit on."""
     t = frames_q(ra, dec)
     if t.empty:
         return {"error": "no frames"}
@@ -124,6 +135,9 @@ def light_curve(ra, dec, full=False) -> dict:
                         continue
                     img, hdr = img[dy:dy + h_, dx:dx + w_], hdr_m
                 x, y = WCS(hdr).world_to_pixel_values(ra, dec)
+                if inject is not None and int(v) >= inject[1]:
+                    img = inject_psf(img.astype(float), float(x), float(y),
+                                     inject[0] / 10 ** (-0.4 * (float(fr.magzp) - 22.5)))
                 r = frame_flux(img, float(x), float(y), float(fr.magzp), unc=unc, msk=msk)
             except Exception:  # noqa: BLE001  a corrupt frame must not kill the position
                 r = None
@@ -302,6 +316,10 @@ def main() -> None:
                       "flux": [round(x, 1) for x in lc["flux"]],
                       "err": [round(float(x), 1) for x in floor.apply(lc["flux"], lc["err"])]})
     res["rises"] = rises
+    for extra in ("injection_image", "negative_audit"):          # written by e7b_validation.py
+        f = OUT / f"{extra}.json"
+        if f.exists():
+            res[extra] = json.loads(f.read_text())
     (OUT / "results.json").write_text(json.dumps(clean(res)))
     print(json.dumps({k: v for k, v in res.items() if k not in ("rises",)}, indent=1, default=str)[:4000])
 

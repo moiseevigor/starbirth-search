@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import secrets
 import threading
 from datetime import datetime, timezone
 from functools import partial
@@ -25,6 +26,34 @@ STORE = ROOT / "reviews" / "reviews.jsonl"
 DECISIONS = {"approve", "refute", "unsure"}
 KEY = re.compile(r"^[a-z0-9_-]{1,40}$")
 LOCK = threading.Lock()
+CSRF = secrets.token_urlsafe(24)          # per-run token, handed to the page via /api/info
+PORT = 8792
+
+
+def catalog_keys() -> set[str] | None:
+    """Candidate keys in the built catalog (None if it has not been built)."""
+    f = WEB / "catalog" / "index.js"
+    if not f.exists():
+        return None
+    js = json.loads(f.read_text().split("=", 1)[1].rstrip().rstrip(";"))
+    return {g["key"] for g in js["gallery"]}
+
+
+def check_request(headers: dict, port: int, csrf: str) -> str | None:
+    """Reject anything that is not our own page on this loopback origin. Returns an error message or None."""
+    ctype = (headers.get("Content-Type") or "").split(";")[0].strip().lower()
+    if ctype != "application/json":
+        return "content type must be application/json"
+    allowed = {f"http://127.0.0.1:{port}", f"http://localhost:{port}"}
+    origin = headers.get("Origin")
+    if origin is not None and origin not in allowed:
+        return "cross-origin request rejected"
+    host = (headers.get("Host") or "").lower()
+    if host not in {f"127.0.0.1:{port}", f"localhost:{port}"}:
+        return "unexpected Host header"
+    if headers.get("X-CSRF-Token") != csrf:
+        return "missing or invalid CSRF token"
+    return None
 
 
 def read_reviews() -> list[dict]:
@@ -67,12 +96,15 @@ class Handler(SimpleHTTPRequestHandler):
             return self._json(200, read_reviews())
         if path == "/api/info":
             where = STORE.relative_to(ROOT) if STORE.is_relative_to(ROOT) else STORE
-            return self._json(200, {"store": str(where), "in_repo": STORE.is_relative_to(ROOT)})
+            return self._json(200, {"store": str(where), "in_repo": STORE.is_relative_to(ROOT), "csrf": CSRF})
         return super().do_GET()
 
     def do_POST(self):  # noqa: N802
         if self.path != "/api/reviews":
             return self._json(404, {"error": "not found"})
+        err = check_request(self.headers, PORT, CSRF)
+        if err:
+            return self._json(403, {"error": err})
         n = int(self.headers.get("Content-Length", 0))
         if n > 20000:
             return self._json(413, {"error": "review too large"})
@@ -80,6 +112,9 @@ class Handler(SimpleHTTPRequestHandler):
             rec = validate(json.loads(self.rfile.read(n) or b"{}"))
         except (ValueError, json.JSONDecodeError) as e:
             return self._json(400, {"error": str(e)})
+        keys = catalog_keys()
+        if keys is not None and rec["key"] not in keys:
+            return self._json(400, {"error": "unknown candidate key"})
         with LOCK:
             STORE.parent.mkdir(parents=True, exist_ok=True)
             with STORE.open("a") as f:
@@ -93,12 +128,13 @@ class Handler(SimpleHTTPRequestHandler):
 
 
 def main() -> None:
-    global STORE
+    global STORE, PORT
     p = argparse.ArgumentParser()
     p.add_argument("--port", type=int, default=8792)
     p.add_argument("--store", type=Path, default=STORE, help="review log file (default reviews/reviews.jsonl)")
     a = p.parse_args()
     STORE = a.store
+    PORT = a.port
     srv = ThreadingHTTPServer(("127.0.0.1", a.port), partial(Handler, directory=str(WEB)))
     where = STORE.relative_to(ROOT) if STORE.is_relative_to(ROOT) else STORE
     print(f"review catalog: http://127.0.0.1:{a.port}/catalog.html  (reviews -> {where})", flush=True)

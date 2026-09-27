@@ -95,8 +95,9 @@ def _cutout(fr: dict, ra: float, dec: float, size_arcsec: int) -> bytes | None:
 
 
 def visit_medians(ra: float, dec: float, per_visit: int = 8, npix: int = 64,
-                  pix_arcsec: float = 1.5) -> tuple[dict[int, np.ndarray], dict[int, list[dict]], dict[int, int]]:
-    """Per-visit median W2 stacks on a common TAN grid centred on (ra, dec)."""
+                  pix_arcsec: float = 1.5, inject=None) -> tuple[dict[int, np.ndarray], dict[int, list[dict]], dict[int, int]]:
+    """Per-visit median W2 stacks on a common TAN grid centred on (ra, dec).
+    inject=(flux_zp, onset_visit) adds a PSF of that ZP-22.5 flux to frames from onset_visit on (validation)."""
     from reproject import reproject_interp
 
     frames = _frames(ra, dec)
@@ -120,6 +121,10 @@ def visit_medians(ra: float, dec: float, per_visit: int = 8, npix: int = 64,
         try:
             with fits.open(io.BytesIO(b)) as h:
                 data, hdr = h[0].data.astype(float), h[0].header
+            if inject is not None and int((fr["mjd"] - NEO0) // VISIT) >= inject[1]:
+                from e7b_symmetric import inject_psf
+                x, y = WCS(hdr).world_to_pixel_values(ra, dec)
+                data = inject_psf(data, float(x), float(y), inject[0] / 10 ** (-0.4 * (hdr.get("MAGZP", 22.5) - 22.5)))
             img, fp = reproject_interp((data, WCS(hdr)), w, shape_out=(npix, npix))
         except Exception:  # noqa: BLE001  one bad frame must not kill the stack
             continue
@@ -132,10 +137,11 @@ def visit_medians(ra: float, dec: float, per_visit: int = 8, npix: int = 64,
             {v: len(stacks[v]) for v in visits})
 
 
-def diff_snr(ra: float, dec: float, onset_visit: int, r_src_px: float = 2.0, r_bkg_px: float = 6.0) -> float | None:
+def diff_snr(ra: float, dec: float, onset_visit: int, r_src_px: float = 2.0, r_bkg_px: float = 6.0,
+             inject=None) -> float | None:
     """Peak of (median post-onset stack - median pre-onset stack) within r_src_px (3") of the
     target, in units of the robust std of the difference map outside r_bkg_px (9")."""
-    meds, _, _ = visit_medians(ra, dec)
+    meds, _, _ = visit_medians(ra, dec, inject=inject)
     pre = [m for v, m in meds.items() if v < onset_visit]
     post = [m for v, m in meds.items() if v >= onset_visit]
     if len(pre) < 2 or len(post) < 2:

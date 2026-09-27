@@ -20,7 +20,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "research"))
 sys.path.insert(0, str(ROOT / "src"))
 from e3_vet_candidate import archive, sep  # noqa: E402
-from e7b_symmetric import clean  # noqa: E402
+from e7b_symmetric import CACHE as E7B_CACHE, clean, eligible, light_curve, stats  # noqa: E402
+from starbirth.features.forced_phot import Floor  # noqa: E402
 from starbirth.features.turn_on import classify  # noqa: E402
 from viewer_imagery import diff_snr, hips_cutouts, neowise_stacks  # noqa: E402
 
@@ -62,8 +63,9 @@ def checklist(det: dict) -> tuple[list[dict], str]:
     items = [
         ("covered_pre", "Position imaged before onset (field detections within 60\" in >= 80% of pre-onset visits)",
          bool(pre_cov) and np.mean([n > 0 for n in pre_cov]) >= 0.8),
-        ("pre_quiet", "Forced pre-onset flux < 3 sigma (no source in the aperture before onset)",
-         pre_sig is not None and pre_sig < 3),
+        # two-sided: a strongly negative baseline means the sky model failed, not that nothing was there
+        ("pre_quiet", "Forced pre-onset flux consistent with zero (|pre| < 3 sigma; negative baselines are unusable)",
+         pre_sig is not None and abs(pre_sig) < 3),
         ("no_catalog_pre", f"No NEOWISE catalog W2 detection (SNR >= 5) within {R_MATCH}\" before onset", onset is not None and not pre_cat),
         ("no_spitzer", f"No Spitzer (GLIMPSE / Vela-Carina) or SPICY source within {R_MATCH}\"",
          not within(ar["glimpse"]) and not within(ar["spicy"])),
@@ -71,7 +73,8 @@ def checklist(det: dict) -> tuple[list[dict], str]:
         ("tier2_rise", "Rise confirmed with mask + uncertainty images (tier 2)", bool(fp.get("confirmed"))),
         ("post_signif", "Post-onset flux >= 5 sigma", (s.get("post_sig") or 0) >= 5),
         ("diff_source", "Point source at the target in the difference image (>= 5 sigma)", (det.get("diff_snr") or 0) >= 5),
-        ("offset_quiet", "Offset twin (60\") shows no rise", det.get("offset_rise") is False),
+        ("offset_quiet", "Offset twin (60\") measured with the same photometry and shows no rise",
+         det.get("offset_status") == "quiet"),
     ]
     out = [{"id": i, "label": lab, "pass": bool(ok)} for i, lab, ok in items]
     fails = [o["id"] for o in out if not o["pass"]]
@@ -79,6 +82,39 @@ def checklist(det: dict) -> tuple[list[dict], str]:
     if det["arm"] == "off":
         verdict = "control: " + verdict
     return out, verdict
+
+
+def e7b_calibration() -> tuple[Floor, float]:
+    res = json.loads((A / "e7b" / "results.json").read_text())
+    return Floor(**res["floor"]), float(res["threshold_dbic"])
+
+
+def offset_status(tid: int, rises: dict, floor: Floor, thr: float) -> str:
+    """quiet / rise / unmeasured for the 60\" offset twin of clump position tid, from its own forced photometry."""
+    f = E7B_CACHE / f"t1_off_{tid}.json"
+    if not f.exists():
+        return "unmeasured"
+    st = stats(json.loads(f.read_text()), floor)
+    if not st.get("ok"):
+        return "unmeasured"
+    if eligible(st) and st["dbic"] >= thr:
+        r = rises.get(("off", tid))
+        return "rise" if r is None or r.get("confirmed", True) else "rise (tier 1 only)"
+    return "quiet"
+
+
+def measure_offset_twins(tids: list[int], s: pd.DataFrame, workers: int = 12) -> int:
+    """Forced photometry at the 60\" offset of every clump candidate that lacks it (same code path as E7b tier 1).
+    Files use the E7b naming so offset_status() finds them; the E7b analysis ignores them (not in design.csv)."""
+    todo = [t for t in tids if not (E7B_CACHE / f"t1_off_{t}.json").exists()]
+
+    def one(t):
+        r = light_curve(float(s.ra[t]), float(s.dec[t]) + 60 / 3600)
+        r.update(arm="off", tid=int(t), stratum="twin")
+        (E7B_CACHE / f"t1_off_{t}.json").write_text(json.dumps(clean(r)))
+    with ThreadPoolExecutor(workers) as ex:
+        list(ex.map(one, todo))
+    return len(todo)
 
 
 def detail(c: dict, rows: dict, rises: dict, props: pd.DataFrame) -> dict:
@@ -108,7 +144,8 @@ def detail(c: dict, rows: dict, rises: dict, props: pd.DataFrame) -> dict:
                     "mipsgal": rec(ar["mipsgal"], ["mag_24", "fnu_24", "sep"]),
                     "spicy": rec(ar["spicy"], ["spicy", "class", "alpha", "mag3_6", "mag4_5", "sep"]),
                     "simbad": rec(ar["simbad"], ["main_id", "otype"])},
-        "offset_rise": rises.get(("off" if arm == "on" else "on", tid), {}).get("confirmed", False) if arm == "on" else None,
+        "offset_status": offset_status(tid, rises, *e7b_calibration()) if arm == "on" else None,
+        "baseline_flag": "negative" if (s.get("pre_sig") is not None and s["pre_sig"] <= -3) else "",
     }
     det["images"] = hips_cutouts(key, ra, dec)
     det["epochs"] = neowise_stacks(key, ra, dec)
@@ -155,7 +192,7 @@ def main() -> None:
 def gallery_rows(details: list[dict]) -> list[dict]:
     return [{k: d[k] for k in ("key", "tid", "arm", "designation", "ra", "dec", "e1_class", "stratum",
                                "machine_verdict", "onset_year", "diff_snr")}
-            | {"props": d["props"], "confirmed": d["forced"]["confirmed"],
+            | {"props": d["props"], "confirmed": d["forced"]["confirmed"], "offset_status": d.get("offset_status"),
                "dbic": (d["forced"]["tier2"] or d["forced"]["tier1"] or {}).get("dbic"),
                "thumb": f"img/{d['key']}/neowise_diff.png" if d["epochs"] else None,
                "n_epochs": len(d["epochs"]), "passes": sum(x["pass"] for x in d["checklist"]),
@@ -173,8 +210,13 @@ def rescore() -> None:
     measured = {(a, t): st for a, t, st in zip(design.arm, design.tid, design.stratum)}
     spicy = set(pd.read_csv(A / "e4" / "spicy_on.csv").tid)
     details, cands = [], {}
+    floor, thr = e7b_calibration()
     for f in sorted(OUT.glob("*.json")):
         d = json.loads(f.read_text())
+        if d["arm"] == "on":
+            d["offset_status"] = offset_status(d["tid"], rises, floor, thr)
+            sig = ((d["forced"].get("tier2") or d["forced"].get("tier1") or {}).get("pre_sig"))
+            d["baseline_flag"] = "negative" if (sig is not None and sig <= -3) else ""
         d["checklist"], d["machine_verdict"] = checklist(d)
         f.write_text(json.dumps(clean(d)))
         details.append(d)
@@ -201,4 +243,11 @@ def write_index(details, s, on_cls, off_cls, res, measured, rises, spicy, cands)
 
 
 if __name__ == "__main__":
-    rescore() if "--rescore" in sys.argv else main()
+    if "--measure-offsets" in sys.argv:
+        _s = pd.read_csv(A / "e1_full" / "pilot_targets.csv")
+        _tids = [json.loads(f.read_text())["tid"] for f in OUT.glob("c*.json")]
+        print("measured offset twins:", measure_offset_twins(_tids, _s))
+    elif "--rescore" in sys.argv:
+        rescore()
+    else:
+        main()

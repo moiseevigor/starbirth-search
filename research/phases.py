@@ -181,8 +181,9 @@ PHASES = [
         question="The literature says a newborn protostar is dark at 3-5 um. Is it the clump's own beam-averaged "
                  "dust column (which Hi-GAL measures) or the unresolved inner envelope, and how much is simply "
                  "distance?",
-        hypothesis="H_clump: the clump column alone pushes a 1-25 L_sun newborn below the NEOWISE limit "
-                   "(W2 = 14.3) for most clumps. H_dist: even with zero extinction most would be below the limit.",
+        hypothesis="Per luminosity L in {1, 5, 25, 100} L_sun. H_dist(L): with zero extinction, fewer than half the "
+                   "clumps are close enough for the source to reach W2 = 14.3. H_clump(L): distance alone leaves "
+                   "a majority detectable but the clump column pushes the majority below the limit.",
         test="Per prestellar clump (0 < d <= 4 kpc): A_4.5 from the catalogue surface density (Sigma -> N_H2 -> "
              "A_V -> A_K -> A_4.5, half the column for a central source); unextincted W2 scaled from the HOPS "
              "Class 0 median ([4.5] = 12.16 at 420 pc for 5.5 L_sun, F_4.5 ~ L); fraction detectable with and "

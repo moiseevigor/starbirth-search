@@ -285,12 +285,19 @@ def events_by_key() -> dict:
     return {e["key"]: e for e in json.loads(f.read_text())} if f.exists() else {}
 
 
+def alternatives_by_key() -> dict:
+    f = A / "e9" / "alternatives.json"
+    return {e["key"]: e for e in json.loads(f.read_text())["events"]} if f.exists() else {}
+
+
 def gallery_rows(details: list[dict]) -> list[dict]:
     ev = events_by_key()
+    alt = alternatives_by_key()
     return [{k: d[k] for k in ("key", "tid", "arm", "designation", "ra", "dec", "e1_class", "stratum",
                                "machine_verdict", "onset_year", "diff_snr")}
             | {k: ev.get(d["key"], {}).get(k) for k in EVENT_FIELDS}
-            | {"d_w1w2": (ev.get(d["key"], {}).get("colour") or {}).get("d_w1w2"), "counterpart": counterpart(d["archive"])}
+            | {"d_w1w2": (ev.get(d["key"], {}).get("colour") or {}).get("d_w1w2"), "counterpart": counterpart(d["archive"]),
+               "alternative": alt.get(d["key"], {}).get("best")}
             | {"props": d["props"], "confirmed": d["forced"]["confirmed"], "offset_status": d.get("offset_status"),
                "dbic": (d["forced"]["tier2"] or d["forced"]["tier1"] or {}).get("dbic"),
                "thumb": f"img/{d['key']}/neowise_diff.png" if d["epochs"] else None,

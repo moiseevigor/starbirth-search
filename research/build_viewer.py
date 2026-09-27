@@ -341,6 +341,33 @@ def _catalog_reading() -> str:
             f"are marked unverifiable); commonest first failure: {why}.")
 
 
+def _gallery_reading() -> tuple[str, dict]:
+    f = A / "gallery" / "events.json"
+    if not f.exists():
+        return "", {}
+    ev = pd.DataFrame(json.loads(f.read_text()))
+    ev["strength"] = np.log10(ev.dbic.clip(lower=1)) + ev.amp_mag.abs().fillna(0) + ev.tier2_confirmed.astype(float)
+    order = ["appearance", "outburst", "brightening", "fade", "dip", "flare", "slow ramp", "weak", "unusable baseline"]
+    counts = {k: [int(((ev.primary == k) & (ev.arm == a)).sum()) for a in ("on", "off")] for k in order}
+    strongest = {}
+    for k in order:
+        g = ev[(ev.primary == k) & (ev.arm == "on")].sort_values("strength", ascending=False).head(3)
+        strongest[k] = [{"key": r.key, "designation": r.designation, "amp_mag": None if pd.isna(r.amp_mag) else float(r.amp_mag), "dbic": int(r.dbic),
+                         "onset_year": r.onset_year, "shape": r.shape, "tier2": bool(r.tier2_confirmed),
+                         "d_w1w2": (r.colour or {}).get("d_w1w2") if isinstance(r.colour, dict) else None,
+                         "strength": round(float(r.strength), 2)} for r in g.itertuples()]
+    n_on, n_off = int((ev.arm == "on").sum()), int((ev.arm == "off").sum())
+    txt = (f" {len(ev)} events ({n_on} at clump positions, {n_off} at offsets). By primary feature, clump / offset: "
+           + "; ".join(f"{k} {c[0]}/{c[1]}" for k, c in counts.items() if sum(c)) + ". "
+           "Strongest clump events: " + "; ".join(
+               f"{k}: {strongest[k][0]['designation']} (delta-m {strongest[k][0]['amp_mag']:+.2f} mag, delta-BIC {strongest[k][0]['dbic']:,}, "
+               f"onset {strongest[k][0]['onset_year']})" for k in order if strongest[k] and strongest[k][0]["amp_mag"] is not None)
+           + ".")
+    sc = ev[["key", "arm", "primary", "amp_mag", "dbic", "tier2_confirmed", "onset_year"]].astype(object).where(ev[["key", "arm", "primary", "amp_mag", "dbic", "tier2_confirmed", "onset_year"]].notna(), None)
+    data = {"counts": counts, "strongest": strongest, "scatter": sc.to_dict("records")}
+    return txt, data
+
+
 def phases() -> list[dict]:
     """PHASES with E4 filled from its artifact (the log never shows a stale number)."""
     ph = [dict(p) for p in PHASES]
@@ -433,6 +460,26 @@ def phases() -> list[dict]:
                            f"model rather than an empty position, and are flagged unusable. Each is in the review desk."
                          + _stratum_reading(j) + _validation_reading(j) + _catalog_reading())
         e7b["data"] = j
+    g1 = next((p for p in ph if p["id"] == "G1"), None)
+    if g1:
+        txt, data = _gallery_reading()
+        if txt:
+            g1["result"] = txt + _catalog_reading()
+            g1["data"] = data
+    f9 = A / "e9" / "alternatives.json"
+    e9 = next((p for p in ph if p["id"] == "E9"), None)
+    if e9 and f9.exists():
+        j = json.loads(f9.read_text())
+        sm = j["summary"]
+        on_total = sum(sm["best_on"].values())
+        unexp = sm["best_on"].get("unexplained by the archives", 0)
+        e9["verdict"] = "confirmed" if unexp == 0 and on_total else ("partial" if on_total else "pending")
+        e9["result"] = (f"{sm['n_with_details']} of {sm['n_events']} events tested. Best alternative explanation for the "
+                        f"{on_total} clump events: " + "; ".join(f"{k} {v}" for k, v in sorted(sm["best_on"].items(), key=lambda kv: -kv[1]))
+                        + ". Offset controls: " + "; ".join(f"{k} {v}" for k, v in sorted(sm["best_off"].items(), key=lambda kv: -kv[1]))
+                        + f". Flags among clump events (an event can carry several): " + ", ".join(f"{k} {v}" for k, v in sm["flags_on"].items())
+                        + (f". Unexplained clump events: {', '.join(sm['unexplained_on'])}." if sm["unexplained_on"] else ". No clump event is left without an archival alternative."))
+        e9["data"] = sm
     f8 = A / "e8" / "extinction_budget.json"
     e8 = next(p for p in ph if p["id"] == "E8")
     if f8.exists():

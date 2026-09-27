@@ -197,4 +197,42 @@ PHASES = [
         next="Human review of every flagged candidate (review desk), then the far-IR/sub-mm two-epoch test that "
              "the literature identifies as the band where a birth first shows.",
         figs=["e8"]),
+    dict(
+        id="G1", title="Event gallery by prominent feature", date="2026-09-28", verdict="partial",
+        question="Beyond the rise-only test, what kinds of variability do the clump positions show, and which "
+                 "events are strongest?",
+        hypothesis="Events at clump positions outnumber offset-control events in every feature class that involves "
+                   "a pre-existing source (brightening, fade, ramp), while the 'appearance' class, the only one "
+                   "compatible with a birth, is not enriched.",
+        test="Every forced light curve (both arms; E7b design, all steady-stratum positions, offset twins) is scanned "
+             "for the best step in either direction at the E7b threshold, then classified by amplitude (mag), shape "
+             "(step / ramp / flare / fade / dip), rise time, W1-W2 change and prior counterpart. Strength = "
+             "log10(delta-BIC) + |amplitude| + 1 if tier-2 confirmed.",
+        result="(computed at build time from artifacts/gallery/events.json and the review catalog)",
+        caveats="The extended steady-stratum sample is not part of the pre-registered E7b population estimate; the "
+                "classifier's amplitude needs a positive pre-onset flux, so 'appearance' and 'unusable' are limits, "
+                "not measurements. Offset-arm coverage is smaller (E7b design + twins), so the on/off ratio per "
+                "class is indicative, not a rate comparison.",
+        next="Human review of the strongest events per class in the desk; sub-mm follow-up of the strongest fades "
+             "and outbursts.",
+        figs=["gallery"]),
+    dict(
+        id="E9", title="Alternative explanations for every event", date="2026-09-28", verdict="pending",
+        question="Is each event better explained by a known star, an evolved Galactic object, dust, a blend or an "
+                 "artefact than by a new star?",
+        hypothesis="Every clump event has at least one archival alternative explanation; no event is left "
+                   "'unexplained by the archives' after the tests, and the offset controls show the same mix.",
+        test="Per event: SIMBAD stellar / variable / AGB types within the 5.5\" aperture; SPICY YSO; Gaia DR3 "
+             "sources within 2\" with their variability class (vari_classifier_result); Lomb-Scargle on the forced "
+             "light curve for P = 150-1500 d (FAP < 0.01; heavily aliased at 6-month cadence, so only "
+             "'sinusoid-consistent'); extinction rule from the W1-W2 change (fade + redder, or brightening + bluer); "
+             "blend from clustered NEOWISE catalog positions; artefact from unusable baselines, rising offset twins "
+             "or low-coverage onsets; prior AllWISE/GLIMPSE/MIPSGAL source. One best alternative by priority.",
+        result="(computed at build time from artifacts/e9/alternatives.json)",
+        caveats="'Unexplained by the archives' means no archival counterpart or effect was found, not that a new "
+                "star is required: the pre-onset forced flux and the E7b stratum still apply. Gaia is optical and "
+                "misses embedded sources by construction; SIMBAD types are heterogeneous.",
+        next="Human review in the desk with the alternative explanation shown on each card; sub-mm follow-up of "
+             "any clump event that stays unexplained and passes the checklist.",
+        figs=["e9"]),
 ]

@@ -195,7 +195,7 @@ textarea{min-height:96px;resize:vertical;width:100%}
       <select id="f-review" aria-label="Review status"><option value="">Any review status</option><option value="none">Not reviewed</option><option value="approve">Approved</option><option value="refute">Refuted</option><option value="unsure">Unsure</option></select>
       <select id="f-sort" aria-label="Sort"><option value="dbic">Sort: rise strength (ΔBIC)</option><option value="amp">Sort: amplitude (mag)</option><option value="passes">Sort: checks passed</option><option value="onset">Sort: onset year</option><option value="tid">Sort: tid</option></select>
       <select id="f-primary" aria-label="Primary feature"><option value="">Any primary feature</option></select>
-      <select id="f-group" aria-label="Group by"><option value="primary">Group: primary feature</option><option value="shape">Group: light-curve shape</option><option value="counterpart">Group: counterpart</option><option value="none">No grouping</option></select>
+      <select id="f-group" aria-label="Group by"><option value="primary">Group: primary feature</option><option value="shape">Group: light-curve shape</option><option value="counterpart">Group: counterpart</option><option value="alternative">Group: alternative explanation</option><option value="none">No grouping</option></select>
       <input type="search" id="f-q" placeholder="Search designation or tid" aria-label="Search gallery">
       <button type="button" id="btn-next" class="primary">Review next unreviewed</button>
     </div>
@@ -296,7 +296,7 @@ function filtered() { const L = latest(), q = $("#f-q").value.trim().toLowerCase
   const order = ["appearance", "outburst", "brightening", "fade", "dip", "flare", "slow ramp", "weak", "unusable baseline"];
   const gk = g => by === "none" ? 0 : (by === "primary" ? (order.indexOf(g.primary) + 1 || 99) : groupKey(g, by));
   return G.sort((a, b) => (gk(a) > gk(b) ? 1 : gk(a) < gk(b) ? -1 : 0) || key(a) - key(b)); }
-const groupKey = (g, by) => by === "primary" ? (g.primary || "not classified") : by === "shape" ? (g.shape || "n/a") : by === "counterpart" ? (g.counterpart || "none") : "";
+const groupKey = (g, by) => by === "primary" ? (g.primary || "not classified") : by === "shape" ? (g.shape || "n/a") : by === "counterpart" ? (g.counterpart || "none") : by === "alternative" ? (g.alternative || "not tested") : "";
 function gallery() { const L = latest(), G = filtered(), by = $("#f-group").value; let last = null, html = "";
   G.forEach((g, i) => { const k = groupKey(g, by);
     if (by !== "none" && k !== last) { last = k; const n = G.filter(x => groupKey(x, by) === k).length;
@@ -309,7 +309,7 @@ function card(g, i, r) { const n = g.n_epochs || 1;
     return `<button class="card ${r ? "done " + r.decision : ""}" type="button" data-key="${g.key}" style="--i:${i}"><div class="thumb"><div style="${bg("stack")}"></div><div style="${bg("diff")}"></div><span class="yr">2024</span></div>
       <div class="body"><span class="t">${esc(g.designation)}${g.arm === "off" ? " +60″" : ""}</span>
       <div class="pills"><span class="pill ${vclass(g.machine_verdict)}">${vshort(g.machine_verdict)}</span><span class="pill ${r ? r.decision : "none"}">${r ? r.decision : "not reviewed"}</span></div>
-      <div class="feat">${g.primary ? `<span>${esc(g.primary)}</span>` : ""}${g.amp_mag != null ? `<span>Δm ${g.amp_mag > 0 ? "+" : ""}${g.amp_mag}</span>` : ""}${g.shape ? `<span>${esc(g.shape)}</span>` : ""}${g.d_w1w2 != null ? `<span>Δ(W1−W2) ${g.d_w1w2 > 0 ? "+" : ""}${g.d_w1w2}</span>` : ""}${g.counterpart ? `<span>${esc(g.counterpart)}</span>` : ""}</div>
+      <div class="feat">${g.primary ? `<span>${esc(g.primary)}</span>` : ""}${g.amp_mag != null ? `<span>Δm ${g.amp_mag > 0 ? "+" : ""}${g.amp_mag}</span>` : ""}${g.shape ? `<span>${esc(g.shape)}</span>` : ""}${g.d_w1w2 != null ? `<span>Δ(W1−W2) ${g.d_w1w2 > 0 ? "+" : ""}${g.d_w1w2}</span>` : ""}${g.counterpart ? `<span>${esc(g.counterpart)}</span>` : ""}${g.alternative ? `<span title="best alternative explanation">alt: ${esc(g.alternative.split(" (")[0])}</span>` : ""}</div>
       <div class="why">${esc(firstFail(g.machine_verdict))}</div>
       <div class="kv"><span>tid <b>${g.tid}</b></span><span>ΔBIC <b>${g.dbic ? Math.round(g.dbic).toLocaleString("en-US") : "–"}</b></span><span>onset <b>${g.onset_year ?? "–"}</b></span><span>checks <b>${g.passes}/${g.n_checks}</b></span></div></div></button>`; }
 $("#gallery").onclick = e => { const b = e.target.closest(".card"); if (b) openDetail(b.dataset.key, filtered().map(g => g.key)); };

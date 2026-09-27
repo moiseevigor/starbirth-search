@@ -99,8 +99,9 @@ def test_tier1_only_twin_is_not_a_pass():
 
 
 def test_offset_arm_is_labelled_control():
-    _, verdict = checklist(_detail(arm="off"))
-    assert verdict.startswith("control:")
+    items, verdict = checklist(_detail(arm="off", offset_status=None))
+    assert verdict.startswith("control:") and not verdict.startswith("control: refuted")
+    assert next(i for i in items if i["id"] == "offset_quiet")["na"]     # controls have no twin: n/a, not a failure
 
 
 def test_simbad_veto_needs_separations_and_fires_inside_aperture():

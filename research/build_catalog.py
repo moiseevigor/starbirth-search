@@ -141,7 +141,7 @@ def checklist(det: dict) -> tuple[list[dict], str]:
         ("post_signif", "Post-onset flux >= 5 sigma", (s.get("post_sig") or 0) >= 5),
         ("diff_source", "Point source at the target in the difference image (>= 5 sigma)", (det.get("diff_snr") or 0) >= 5),
         ("offset_quiet", "Offset twin (60\") measured through tier 2 with the same photometry and shows no rise",
-         det.get("offset_status") == "quiet"),
+         (det.get("offset_status") == "quiet") if det["arm"] == "on" else NA),   # controls have no twin
     ]
     out = [{"id": i, "label": lab, "pass": (ok is not NA and bool(ok)), "na": ok is NA} for i, lab, ok in items]
     fails = [o["id"] for o in out if not o["pass"] and not o["na"]]

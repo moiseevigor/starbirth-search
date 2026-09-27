@@ -478,6 +478,7 @@ def phases() -> list[dict]:
                         f"{on_total} clump events: " + "; ".join(f"{k} {v}" for k, v in sorted(sm["best_on"].items(), key=lambda kv: -kv[1]))
                         + ". Offset controls: " + "; ".join(f"{k} {v}" for k, v in sorted(sm["best_off"].items(), key=lambda kv: -kv[1]))
                         + f". Flags among clump events (an event can carry several): " + ", ".join(f"{k} {v}" for k, v in sm["flags_on"].items())
+                        + f". A W1-W2 colour change was measurable for {sm.get('colour_available_on', 0)} clump events"
                         + (f". Unexplained clump events: {', '.join(sm['unexplained_on'])}." if sm["unexplained_on"] else ". No clump event is left without an archival alternative."))
         e9["data"] = sm
     f8 = A / "e8" / "extinction_budget.json"

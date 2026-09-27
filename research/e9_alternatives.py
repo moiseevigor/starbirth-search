@@ -88,6 +88,25 @@ def periodicity(year: list, flux: list, err: list) -> dict:
             "note": "sinusoid-consistent only: 6-month cadence aliases the period"}
 
 
+def colour_from_archive(key: str, onset_year: float) -> float | None:
+    """d(W1-W2) = post - pre from catalog detections within 3" in artifacts/e3_vet/<key>/neowise_60arcsec.csv."""
+    f = ROOT / "artifacts" / "e3_vet" / key / "neowise_60arcsec.csv"
+    if not f.exists():
+        return None
+    try:
+        d = pd.read_csv(f)
+    except pd.errors.EmptyDataError:
+        return None
+    if d.empty or "w1mpro" not in d or "w2mpro" not in d:
+        return None
+    d = d[(d.sep <= 3) & (d.w2snr >= 5) & (d.w1snr >= 3)].dropna(subset=["w1mpro", "w2mpro"])
+    yr = 2013.95 + (d.mjd - NEO0) / 365.25
+    pre, post = d[yr < onset_year], d[yr >= onset_year]
+    if len(pre) < 3 or len(post) < 3:
+        return None
+    return round(float((post.w1mpro - post.w2mpro).median() - (pre.w1mpro - pre.w2mpro).median()), 2)
+
+
 def blend_count(e1: dict) -> int:
     """Distinct source positions among catalog detections within 6": cluster separations at > 2"."""
     seps = np.array(e1.get("sep", []), float)
@@ -108,8 +127,11 @@ def explain(ev: dict, det: dict) -> dict:
     gsrc = g["sources"]
     gclass = [s["best_class_name"] for s in gsrc if s.get("best_class_name")]
     per = periodicity(ev["year"], ev["flux"], ev["err"])
-    col = (ev.get("colour") or {}).get("d_w1w2")
+    col = colour_from_archive(det["key"], ev["onset_year"])
+    if col is None:
+        col = (ev.get("colour") or {}).get("d_w1w2")
     up = ev["direction"] == "up"
+    fp1 = fp.get("tier2") or fp.get("tier1") or {}
     cov = det["archive"].get("coverage", [])
     onset_v = int(round((ev["onset_year"] - 2013.95) / 0.5 - 0.5))
     low_cov = bool(cov and 0 <= onset_v < len(cov) and cov[onset_v] < 0.5 * np.median([c for c in cov if c > 0] or [1]))
@@ -125,12 +147,18 @@ def explain(ev: dict, det: dict) -> dict:
         "d_w1w2": col, "blend": blend_count(det["e1_rows"]) >= 2,
         "artefact": bool(ev["primary"] == "unusable baseline" or (det.get("offset_status") or "").startswith("rise") or low_cov),
         "prior_source": bool(within(ar.get("allwise", [])) or within(ar.get("glimpse", [])) or within(ar.get("mipsgal", []))),
+        # physical alternatives that need no catalogue: a source already in the aperture before onset, or a flux
+        # change with no point source in the difference image (extended emission or sky-level change)
+        "uncatalogued_prior": bool(fp1.get("pre_sig") is not None and fp1["pre_sig"] >= 3),
+        "no_point_source": bool(det.get("diff_snr") is not None and det["diff_snr"] < 5),
     }
     order = [("artefact", "artefact / bad baseline"), ("known_variable", "known variable star (Gaia/SIMBAD)"),
              ("known_yso", "known YSO (SPICY/SIMBAD/Gaia): outburst or variability of an existing protostar"),
              ("known_star", "known star with optical counterpart"), ("agb_lpv", "AGB / long-period variable"),
              ("extinction", "variable extinction (colour follows the flux)"), ("blend", "blend of several sources"),
-             ("prior_source", "brightening of a source already catalogued (AllWISE/GLIMPSE/MIPSGAL)")]
+             ("prior_source", "brightening of a source already catalogued (AllWISE/GLIMPSE/MIPSGAL)"),
+             ("uncatalogued_prior", "variability of an uncatalogued source already in the aperture (pre-onset flux >= 3 sigma)"),
+             ("no_point_source", "no point source in the difference image (extended emission or sky-level change)")]
     best = next((lab for k, lab in order if ev_[k]), "unexplained by the archives")
     ev_["best"] = best
     return ev_
@@ -151,7 +179,8 @@ def main() -> None:
     summary = {"n_events": len(events), "n_with_details": len(rows),
                "best_on": df[df.arm == "on"].best.value_counts().to_dict(),
                "best_off": df[df.arm == "off"].best.value_counts().to_dict(),
-               "flags_on": {k: int(df[df.arm == "on"][k].sum()) for k in ("artefact", "known_variable", "known_yso", "known_star", "agb_lpv", "extinction", "blend", "prior_source")},
+               "flags_on": {k: int(df[df.arm == "on"][k].sum()) for k in ("artefact", "known_variable", "known_yso", "known_star", "agb_lpv", "extinction", "blend", "prior_source", "uncatalogued_prior", "no_point_source")},
+               "colour_available_on": int(df[df.arm == "on"].d_w1w2.notna().sum()),
                "unexplained_on": [r["key"] for r in rows if r["arm"] == "on" and r["best"].startswith("unexplained")],
                "gaia_ok": int(sum(1 for r in rows if r.get("periodic")))}
     (OUT / "alternatives.json").write_text(json.dumps(clean({"summary": summary, "events": rows})))

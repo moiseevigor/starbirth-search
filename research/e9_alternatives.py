@@ -134,13 +134,17 @@ def explain(ev: dict, det: dict) -> dict:
         (CACHE / f"gaia_{det['key']}.json").unlink(missing_ok=True)     # do not cache a failed query
     gclass = [s["best_class_name"] for s in gsrc if s.get("best_class_name")]
     per = periodicity(ev["year"], ev["flux"], ev["err"])
-    col = colour_from_archive(det["key"], ev["onset_year"])
+    onset_year = det.get("onset_year") or ev["onset_year"]
+    col = colour_from_archive(det["key"], onset_year)
     if col is None:
         col = (ev.get("colour") or {}).get("d_w1w2")
-    up = ev["direction"] == "up"
-    fp1 = fp.get("tier2") or fp.get("tier1") or {}
+    fp1 = det.get("fit") or {}
+    if not fp1:
+        from build_catalog import canonical_fit
+        fp1 = canonical_fit(fp) or {}
+    up = fp1.get("direction", ev["direction"]) == "up"
     cov = det["archive"].get("coverage", [])
-    onset_v = int(round((ev["onset_year"] - 2013.95) / 0.5 - 0.5))
+    onset_v = fp1.get("onset_visit") if fp1.get("onset_visit") is not None else int(round((ev["onset_year"] - 2013.95) / 0.5 - 0.5))
     low_cov = bool(cov and 0 <= onset_v < len(cov) and cov[onset_v] < 0.5 * np.median([c for c in cov if c > 0] or [1]))
     ev_ = {
         "known_star": bool(within(simbad_stellar(sb)) or within(ar.get("spicy", [])) or gsrc),

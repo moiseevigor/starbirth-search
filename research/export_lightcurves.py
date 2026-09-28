@@ -29,6 +29,17 @@ def sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def required_t2_from_tracked_inputs() -> set[str]:
+    """Required tier-2 keys, from tracked inputs only: every E7b tier-1 rise (artifacts/e7b/results.json) and the
+    60\" twin of every clump candidate (data/twins.json, which must exist). Used by export AND load."""
+    res = json.loads((E7B / "results.json").read_text())
+    twins_file = DATA / "twins.json"
+    if not twins_file.exists():
+        raise RuntimeError("data/twins.json is missing: the required tier-2 set cannot be defined")
+    twins = json.loads(twins_file.read_text())
+    return {f"{r['arm']}_{int(r['tid'])}" for r in res["rises"]} | {f"off_{int(t)}" for t in twins}
+
+
 def expected_universe() -> dict[str, dict]:
     """Expected light-curve keys from TRACKED inputs only (never from the cache):
     design.csv (both arms), the E1 class table for the extended 'steady' stratum (on arm), and the
@@ -51,11 +62,7 @@ def main() -> None:
     manifest = {"created": str(date.today()), "floor": res["floor"], "threshold_dbic": res["threshold_dbic"],
                 "git_commit": subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, cwd=ROOT).stdout.strip(),
                 "universe_size": len(uni), "tiers": {}}
-    # required tier-2 keys come from tracked inputs only: every E7b tier-1 rise (results.json) and every twin
-    # (data/twins.json, both arms of the pair); any other existing tier-2 curve is exported as optional
-    required_t2 = {f"{r['arm']}_{int(r['tid'])}" for r in res["rises"]}
-    twins = json.loads((DATA / "twins.json").read_text()) if (DATA / "twins.json").exists() else []
-    required_t2 |= {f"off_{int(t)}" for t in twins}
+    required_t2 = required_t2_from_tracked_inputs()
     manifest["required_t2"] = sorted(required_t2)
     for tier in (1, 2):
         rows, status = [], {}

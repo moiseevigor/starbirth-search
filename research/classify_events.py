@@ -40,6 +40,7 @@ def load_tracked(floor: Floor, thr: float) -> dict:
     import gzip
     import hashlib
     from export_lightcurves import expected_universe
+    import export_lightcurves as _ex
     data = ROOT / "data"
     man = json.loads((data / "lightcurves_manifest.json").read_text())
     if abs(man["threshold_dbic"] - thr) > 1e-9 or man["floor"] != {"s_abs": floor.s_abs, "s_rel": floor.s_rel}:
@@ -57,10 +58,12 @@ def load_tracked(floor: Floor, thr: float) -> dict:
                                    f"{len(set(st) - uni)} unexpected")
             required = uni
         else:
-            required = set(man.get("required_t2", []))
-            res_rises = {f"{r['arm']}_{int(r['tid'])}" for r in json.loads((ROOT / "artifacts" / "e7b" / "results.json").read_text())["rises"]}
-            if not res_rises <= required:
-                raise RuntimeError("t2: manifest required set does not include every E7b rise")
+            from export_lightcurves import required_t2_from_tracked_inputs
+            required = required_t2_from_tracked_inputs()                # reconstructed, never trusted from the manifest
+            if set(man.get("required_t2", [])) != required:
+                raise RuntimeError(f"t2: manifest required set differs from the tracked inputs "
+                                   f"({len(required - set(man.get('required_t2', [])))} absent, "
+                                   f"{len(set(man.get('required_t2', [])) - required)} extra)")
             if not required <= set(st):
                 raise RuntimeError(f"t2: {len(required - set(st))} required keys absent from the manifest")
         bad = sorted(k for k in required if st.get(k, {}).get("status") in (None, "missing", "failed"))

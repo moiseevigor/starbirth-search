@@ -97,11 +97,29 @@ def counterpart(ar: dict) -> str:
     return "none"
 
 
+def canonical_fit(r: dict) -> dict | None:
+    """One atomic fit per event: the confirmed tier-2 fit (its own onset AND direction) or else the tier-1 fit.
+    Every consumer (difference statistic, displayed onset, checklist, E9) reads this single pair."""
+    if not r:
+        return None
+    t2, t1 = r.get("tier2") or {}, r.get("tier1") or {}
+    if r.get("confirmed") and t2.get("onset_visit") is not None:
+        f = dict(t2)
+        f["tier"] = 2
+    elif t1.get("onset_visit") is not None:
+        f = dict(t1)
+        f["tier"] = 1
+    else:
+        return None
+    f["direction"] = "down" if (f.get("step") is not None and f["step"] < 0) else "up"
+    return f
+
+
 def checklist(det: dict) -> tuple[list[dict], str]:
     """Machine evidence for 'birth start' = a new source where nothing was before.
     Each item is pass / fail / n/a (archive does not cover the position); n/a never counts as a pass."""
+    s = det.get("fit") or canonical_fit(det.get("forced", {})) or {}
     fp = det.get("forced", {})
-    s = fp.get("tier2") or fp.get("tier1") or {}
     onset = s.get("onset_visit")
     ar = det["archive"]
     cov = ar["coverage"]
@@ -211,7 +229,7 @@ def detail(c: dict, rows: dict, rises: dict, props: pd.DataFrame) -> dict:
                            "pre_sig": e["pre_sig"], "post_sig": e["post_sig"], "step": 1.0 if e["direction"] == "up" else -1.0},
                  "tier2": None, "confirmed": bool(e.get("tier2_confirmed")), "stratum": e.get("stratum"),
                  "year": e["year"], "flux": e["flux"], "err": e["err"]}
-    s = r.get("tier2") or r.get("tier1") or {}
+    s = canonical_fit(r) or {}
     onset = s.get("onset_visit")
     h = props.loc[c["designation"]]
     det = {
@@ -234,7 +252,8 @@ def detail(c: dict, rows: dict, rises: dict, props: pd.DataFrame) -> dict:
     }
     det["images"] = hips_cutouts(key, ra, dec)
     det["epochs"] = neowise_stacks(key, ra, dec)
-    direction = "down" if (s.get("step") is not None and s["step"] < 0) else "up"
+    direction = s.get("direction", "up")
+    det["fit"] = {k: s.get(k) for k in ("tier", "onset_visit", "direction", "dbic", "step", "pre_sig", "post_sig", "pre", "post")}
     det["direction"] = direction
     det["diff_snr"] = diff_snr(ra, dec, onset, direction=direction) if onset is not None else None
     det["onset_year"] = round(2013.95 + (onset + 0.5) * 0.5, 2) if onset is not None else None
@@ -287,14 +306,27 @@ def events_by_key() -> dict:
     return {e["key"]: e for e in json.loads(f.read_text())} if f.exists() else {}
 
 
-def alternatives_by_key() -> dict:
+def alternatives_by_key(strict: bool = False) -> dict:
+    """E9 rows by key. strict=True (used when building the desk) refuses an E9 artifact that is not complete:
+    summary.complete and exact_key_match must hold and every row must have successful Gaia and SIMBAD queries."""
     f = A / "e9" / "alternatives.json"
-    return {e["key"]: e for e in json.loads(f.read_text())["events"]} if f.exists() else {}
+    if not f.exists():
+        if strict:
+            raise RuntimeError("artifacts/e9/alternatives.json is missing: run e9_alternatives.py")
+        return {}
+    j = json.loads(f.read_text())
+    sm, rows = j.get("summary", {}), j["events"]
+    if strict:
+        bad = [r["key"] for r in rows if not (r.get("gaia_ok", False) and r.get("simbad_ok", False))]
+        if not (sm.get("complete") and sm.get("exact_key_match")) or bad:
+            raise RuntimeError(f"E9 artifact is incomplete (complete={sm.get('complete')}, exact={sm.get('exact_key_match')}, "
+                               f"{len(bad)} rows with failed queries): refusing to build the desk")
+    return {e["key"]: e for e in rows}
 
 
 def gallery_rows(details: list[dict]) -> list[dict]:
     ev = events_by_key()
-    alt = alternatives_by_key()
+    alt = alternatives_by_key(strict=True)
     # every displayed forced-photometry event must carry E9 evidence; E1-only entries form a separate queue
     missing_e9 = sorted(d["key"] for d in details if d["key"] in ev and d["key"] not in alt)
     if missing_e9:
@@ -331,6 +363,10 @@ def rescore() -> None:
         ar = archive(d["key"], d["ra"], d["dec"])
         d["archive"].update({"simbad": rec(ar["simbad"], ["main_id", "otype", "sep", "error"]),
                              "mipsgal": rec(ar["mipsgal"], ["mag_24", "fnu_24", "sep"])})
+        s = canonical_fit(d.get("forced", {})) or {}
+        d["fit"] = {k: s.get(k) for k in ("tier", "onset_visit", "direction", "dbic", "step", "pre_sig", "post_sig", "pre", "post")}
+        d["direction"] = s.get("direction", "up")
+        d["onset_year"] = round(2013.95 + (s["onset_visit"] + 0.5) * 0.5, 2) if s.get("onset_visit") is not None else None
         if d["arm"] == "on":
             d["offset_status"] = offset_status(d["tid"], rises, floor, thr)
             sig = ((d["forced"].get("tier2") or d["forced"].get("tier1") or {}).get("pre_sig"))
@@ -369,11 +405,11 @@ def rediff(workers: int = 6) -> None:
 
     def one(f):
         d = json.loads(f.read_text())
-        e = ev.get(d["key"])
-        s = d["forced"].get("tier2") or d["forced"].get("tier1") or {}
-        onset = s.get("onset_visit")
-        direction = (e or {}).get("direction") or ("down" if (s.get("step") is not None and s["step"] < 0) else "up")
+        s = canonical_fit(d.get("forced", {})) or {}
+        onset, direction = s.get("onset_visit"), s.get("direction", "up")
+        d["fit"] = {k: s.get(k) for k in ("tier", "onset_visit", "direction", "dbic", "step", "pre_sig", "post_sig", "pre", "post")}
         d["direction"] = direction
+        d["onset_year"] = round(2013.95 + (onset + 0.5) * 0.5, 2) if onset is not None else None
         d["diff_snr"] = diff_snr(d["ra"], d["dec"], onset, direction=direction) if onset is not None else None
         f.write_text(json.dumps(clean(d)))
         return d["key"], d["diff_snr"]

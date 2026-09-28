@@ -80,6 +80,7 @@ def test_export_marks_failed_required_curves_fatal(tmp_path, monkeypatch):
     import export_lightcurves as ex
     monkeypatch.setattr(ex, "CACHE", tmp_path / "cache"); (tmp_path / "cache").mkdir()
     monkeypatch.setattr(ex, "DATA", tmp_path / "data"); monkeypatch.setattr(ex, "E7B", tmp_path / "e7b"); (tmp_path / "e7b").mkdir()
+    (tmp_path / "data").mkdir(); (tmp_path / "data" / "twins.json").write_text("[]")
     (tmp_path / "e7b" / "results.json").write_text(json.dumps({"floor": {"s_abs": 0, "s_rel": 0}, "threshold_dbic": 47, "rises": []}))
     monkeypatch.setattr(ex, "expected_universe", lambda: {"on_1": {"group": "design", "stratum": "none"}})
     (tmp_path / "cache" / "t1_on_1.json").write_text(json.dumps({"error": "no frames"}))
@@ -88,3 +89,34 @@ def test_export_marks_failed_required_curves_fatal(tmp_path, monkeypatch):
         assert False, "a failed required curve must abort the export"
     except SystemExit as err:
         assert "failed" in str(err)
+
+
+def test_omitted_twin_in_manifest_fails_load(tmp_path, monkeypatch):
+    import gzip
+    import hashlib
+    import json
+    import classify_events as ce
+    import export_lightcurves as ex
+    from starbirth.features.forced_phot import Floor
+    data = tmp_path / "data"; data.mkdir()
+    def csv(name, rows):
+        f = data / name
+        with gzip.open(f, "wt") as g:
+            g.write("arm,tid,visit,flux,err\n" + "".join(rows))
+        return f
+    f1 = csv("lightcurves_t1.csv.gz", ["on,1,0,1.0,1.0\n", "off,1,0,1.0,1.0\n"])
+    f2 = csv("lightcurves_t2.csv.gz", ["on,1,0,1.0,1.0\n"])
+    man = {"threshold_dbic": 47.0, "floor": {"s_abs": 0.0, "s_rel": 0.0}, "required_t2": ["on_1"],   # twin off_1 omitted
+           "tiers": {"t1": {"file": f1.name, "sha256": hashlib.sha256(f1.read_bytes()).hexdigest(),
+                            "keys": {"on_1": {"stratum": "x", "status": "ok"}, "off_1": {"stratum": "twin", "status": "ok"}}},
+                     "t2": {"file": f2.name, "sha256": hashlib.sha256(f2.read_bytes()).hexdigest(),
+                            "keys": {"on_1": {"stratum": "x", "status": "ok"}}}}}
+    (data / "lightcurves_manifest.json").write_text(json.dumps(man))
+    monkeypatch.setattr(ce, "ROOT", tmp_path)
+    monkeypatch.setattr(ex, "expected_universe", lambda: {"on_1": {}, "off_1": {}})
+    monkeypatch.setattr(ex, "required_t2_from_tracked_inputs", lambda: {"on_1", "off_1"})   # tracked truth includes the twin
+    try:
+        ce.load_tracked(Floor(0.0, 0.0), 47.0)
+        assert False, "an omitted required twin must fail the load"
+    except RuntimeError as err:
+        assert "differs from the tracked inputs" in str(err)

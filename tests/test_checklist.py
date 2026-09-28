@@ -132,3 +132,29 @@ def test_zero_separation_counts_as_a_match_and_clump_entries_are_ignored():
     assert "no_spitzer" in checklist(d)[1]                       # 0.0" is inside the aperture
     d = _detail(archive={**base["archive"], "simbad": [{"main_id": "AGAL G345.084-00.614", "otype": "Y*O", "sep": 0.0}]})
     assert checklist(d)[1] == "birth-compatible"                 # the ATLASGAL clump entry is the clump itself
+
+
+def test_canonical_fit_uses_tier2_only_when_confirmed():
+    from build_catalog import canonical_fit
+    # unconfirmed tier-2 fit with opposite sign and a different onset must NOT override the tier-1 event
+    r = {"tier1": {"onset_visit": 8, "step": 1.0, "dbic": 100.0}, "tier2": {"onset_visit": 15, "step": -1.0, "dbic": 60.0}, "confirmed": False}
+    f = canonical_fit(r)
+    assert f["tier"] == 1 and f["onset_visit"] == 8 and f["direction"] == "up"
+    r["confirmed"] = True; r["tier2"]["step"] = 2.0
+    f = canonical_fit(r)
+    assert f["tier"] == 2 and f["onset_visit"] == 15 and f["direction"] == "up"
+
+
+def test_desk_build_refuses_incomplete_e9(tmp_path, monkeypatch):
+    import json
+    import build_catalog as bc
+    a = tmp_path / "e9"; a.mkdir()
+    (a / "alternatives.json").write_text(json.dumps({"summary": {"complete": True, "exact_key_match": True},
+        "events": [{"key": "c1", "gaia_ok": False, "simbad_ok": True, "best": "x"}]}))     # a failed Gaia query
+    monkeypatch.setattr(bc, "A", tmp_path)
+    try:
+        bc.alternatives_by_key(strict=True)
+        assert False, "a failed evidence query must refuse the desk build"
+    except RuntimeError as err:
+        assert "incomplete" in str(err)
+    assert "c1" in bc.alternatives_by_key(strict=False)

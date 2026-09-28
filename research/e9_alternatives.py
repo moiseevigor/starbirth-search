@@ -82,10 +82,13 @@ def periodicity(year: list, flux: list, err: list) -> dict:
     cp = best_persistent_step(f, e, min_points_each_side=3)
     step_model = np.where(np.arange(f.size) < (cp.index if cp.index is not None else f.size), cp.pre_mean, cp.post_mean)
     chi_step = float(np.sum(((f - step_model) / e) ** 2))
-    return {"ok": True, "period_d": round(1 / freq[i], 1), "power": round(float(power[i]), 3), "fap": fap,
-            "chi2_sin": round(chi_sin, 1), "chi2_step": round(chi_step, 1),
-            "periodic": bool(fap < 0.01 and chi_sin < chi_step),
-            "note": "sinusoid-consistent only: 6-month cadence aliases the period"}
+    P = 1 / freq[i]
+    cadence = 182.625
+    window = any(abs(P - h) / h < 0.15 for h in (cadence / 2, cadence, 2 * cadence, 365.25))   # sampling window peaks
+    return {"ok": True, "period_d": round(P, 1), "power": round(float(power[i]), 3), "fap": fap,
+            "chi2_sin": round(chi_sin, 1), "chi2_step": round(chi_step, 1), "window_peak": bool(window),
+            "periodic": bool(fap < 0.01 and chi_sin < chi_step and not window),
+            "note": "informational only: 6-month cadence aliases periods; never used alone to label an AGB/LPV"}
 
 
 def colour_from_archive(key: str, onset_year: float) -> float | None:
@@ -125,6 +128,8 @@ def explain(ev: dict, det: dict) -> dict:
     sb_types = [str(r.get("otype", "")) for r in sb if not str(r.get("main_id", "")).startswith(("AGAL", "HIGALBM", "[MML2017]", "[EMM"))]
     g = gaia(det["ra"], det["dec"], det["key"])
     gsrc = g["sources"]
+    if not g.get("ok"):
+        (CACHE / f"gaia_{det['key']}.json").unlink(missing_ok=True)     # do not cache a failed query
     gclass = [s["best_class_name"] for s in gsrc if s.get("best_class_name")]
     per = periodicity(ev["year"], ev["flux"], ev["err"])
     col = colour_from_archive(det["key"], ev["onset_year"])
@@ -141,7 +146,8 @@ def explain(ev: dict, det: dict) -> dict:
         "known_variable": bool(any(t.startswith(VARIABLE_OTYPES) or any(v in t for v in VARIABLE_OTYPES) for t in sb_types) or gclass
                                or any(str(s.get("phot_variable_flag")) == "VARIABLE" for s in gsrc)),
         "gaia_classes": gclass,
-        "agb_lpv": bool(any(any(a in t for a in AGB_OTYPES) for t in sb_types) or any(c == "LPV" for c in gclass) or per.get("periodic")),
+        # AGB/LPV needs catalogue evidence (SIMBAD AGB types or a Gaia LPV class); periodicity is only reported
+        "agb_lpv": bool(any(any(a in t for a in AGB_OTYPES) for t in sb_types) or any(c == "LPV" for c in gclass)),
         "periodic": per, "known_yso": bool(within(ar.get("spicy", [])) or any("Y*" in t or "TT*" in t or "Or*" in t or "FU*" in t for t in sb_types) or "YSO" in gclass),
         "extinction": bool(col is not None and ((not up and col >= 0.2) or (up and col <= -0.2))),
         "d_w1w2": col, "blend": blend_count(det["e1_rows"]) >= 2,
@@ -151,6 +157,7 @@ def explain(ev: dict, det: dict) -> dict:
         # change with no point source in the difference image (extended emission or sky-level change)
         "uncatalogued_prior": bool(fp1.get("pre_sig") is not None and fp1["pre_sig"] >= 3),
         "no_point_source": bool(det.get("diff_snr") is not None and det["diff_snr"] < 5),
+        "_gaia_ok": bool(g.get("ok")),
     }
     order = [("artefact", "artefact / bad baseline"), ("known_variable", "known variable star (Gaia/SIMBAD)"),
              ("known_yso", "known YSO (SPICY/SIMBAD/Gaia): outburst or variability of an existing protostar"),
@@ -172,11 +179,16 @@ def main() -> None:
     def one(e):
         det = json.loads((CAT / f"{e['key']}.json").read_text())
         x = explain(e, det)
-        return {"key": e["key"], "arm": e["arm"], "primary": e["primary"], "designation": e["designation"], **x}
+        return {"key": e["key"], "arm": e["arm"], "primary": e["primary"], "designation": e["designation"],
+                "gaia_ok": bool(x.pop("_gaia_ok", True)), **x}
     with ThreadPoolExecutor(6) as ex:
         rows = list(ex.map(one, have))
     df = pd.DataFrame(rows)
-    summary = {"n_events": len(events), "n_with_details": len(rows),
+    missing = sorted(e["key"] for e in events if not (CAT / f"{e['key']}.json").exists())
+    gaia_failed = sorted(r["key"] for r in rows if not r.get("gaia_ok", True))
+    complete = not missing and not gaia_failed
+    summary = {"n_events": len(events), "n_with_details": len(rows), "complete": complete,
+               "missing_details": missing, "gaia_failed": gaia_failed,
                "best_on": df[df.arm == "on"].best.value_counts().to_dict(),
                "best_off": df[df.arm == "off"].best.value_counts().to_dict(),
                "flags_on": {k: int(df[df.arm == "on"][k].sum()) for k in ("artefact", "known_variable", "known_yso", "known_star", "agb_lpv", "extinction", "blend", "prior_source", "uncatalogued_prior", "no_point_source")},

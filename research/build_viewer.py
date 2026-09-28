@@ -473,13 +473,18 @@ def phases() -> list[dict]:
         sm = j["summary"]
         on_total = sum(sm["best_on"].values())
         unexp = sm["best_on"].get("unexplained by the archives", 0)
-        e9["verdict"] = "confirmed" if unexp == 0 and on_total else ("partial" if on_total else "pending")
+        complete = bool(sm.get("complete")) and sm["n_with_details"] == sm["n_events"]
+        # fail closed: a partial catalog or a failed evidence query can never yield 'confirmed'
+        e9["verdict"] = ("confirmed" if complete and unexp == 0 and on_total else
+                         "incomplete" if not complete else ("partial" if on_total else "pending"))
         e9["result"] = (f"{sm['n_with_details']} of {sm['n_events']} events tested. Best alternative explanation for the "
                         f"{on_total} clump events: " + "; ".join(f"{k} {v}" for k, v in sorted(sm["best_on"].items(), key=lambda kv: -kv[1]))
                         + ". Offset controls: " + "; ".join(f"{k} {v}" for k, v in sorted(sm["best_off"].items(), key=lambda kv: -kv[1]))
                         + f". Flags among clump events (an event can carry several): " + ", ".join(f"{k} {v}" for k, v in sm["flags_on"].items())
                         + f". A W1-W2 colour change was measurable for {sm.get('colour_available_on', 0)} clump events"
-                        + (f". Unexplained clump events: {', '.join(sm['unexplained_on'])}." if sm["unexplained_on"] else ". No clump event is left without an archival alternative."))
+                        + (f". Unexplained clump events: {', '.join(sm['unexplained_on'])}." if sm["unexplained_on"] else ". No clump event is left without an archival alternative.")
+                        + ("" if complete else f" INCOMPLETE: {len(sm.get('missing_details', []))} events without details, "
+                                               f"{len(sm.get('gaia_failed', []))} failed Gaia queries; verdict withheld."))
         e9["data"] = sm
     f8 = A / "e8" / "extinction_budget.json"
     e8 = next(p for p in ph if p["id"] == "E8")

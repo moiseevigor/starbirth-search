@@ -33,6 +33,32 @@ GAL = ROOT / "artifacts" / "gallery"
 NEO0 = 56640.0
 
 
+def load_tracked(floor: Floor, thr: float) -> dict:
+    """Light curves from the tracked export; verifies the manifest (hashes, calibration) and fails on any mismatch."""
+    import gzip
+    import hashlib
+    data = ROOT / "data"
+    man = json.loads((data / "lightcurves_manifest.json").read_text())
+    if abs(man["threshold_dbic"] - thr) > 1e-9 or man["floor"] != {"s_abs": floor.s_abs, "s_rel": floor.s_rel}:
+        raise RuntimeError("manifest calibration differs from artifacts/e7b/results.json: re-run export_lightcurves.py")
+    out = {}
+    for tier, m in man["tiers"].items():
+        f = data / m["file"]
+        if hashlib.sha256(f.read_bytes()).hexdigest() != m["sha256"]:
+            raise RuntimeError(f"{f.name} does not match its manifest hash")
+        with gzip.open(f, "rt") as g:
+            df = pd.read_csv(g)
+        got = {f"{a}_{t}" for a, t in zip(df.arm, df.tid)}
+        exp = set(m["keys"])
+        if got != exp:
+            raise RuntimeError(f"{tier}: {len(exp - got)} manifest keys missing, {len(got - exp)} extra: "
+                               f"{sorted(exp ^ got)[:5]}")
+        out[tier] = {(a, int(t)): {"visit": g.visit.tolist(), "flux": g.flux.tolist(), "err": g.err.tolist(),
+                                   "stratum": m["keys"][f"{a}_{t}"]["stratum"]}
+                     for (a, t), g in df.groupby(["arm", "tid"])}
+    return out
+
+
 def both_ways(lc: dict, floor: Floor) -> dict | None:
     """Best step in either direction with the same significance rule as E7b."""
     f, e, v = np.array(lc.get("flux", [])), np.array(lc.get("err", [])), np.array(lc.get("visit", []))
@@ -48,6 +74,26 @@ def both_ways(lc: dict, floor: Floor) -> dict | None:
     return {"dbic": float(cp.delta_bic), "step": float(cp.amplitude), "onset_visit": onset,
             "pre": float(f[pre].mean()), "post": float(f[post].mean()), "pre_sig": float(f[pre].mean() / sem(pre)),
             "post_sig": float(f[post].mean() / sem(post)), "f": f, "e": e2, "v": v, "pre_m": pre, "post_m": post}
+
+
+def ramp_vs_step(f, e, v, onset, pre, post) -> tuple[int, float]:
+    """Compare a step at `onset` with linear ramps from `onset` lasting k visits (k = 2..8); returns the ramp
+    duration (visits) and delta-BIC(step - ramp); positive = the ramp is preferred (one extra parameter)."""
+    idx = np.arange(f.size)
+    i0 = int(np.searchsorted(v, onset))
+    step_m = np.where(idx < i0, pre, post)
+    chi_step = float(np.sum(((f - step_m) / e) ** 2))
+    best_k, best_chi = 1, np.inf
+    for k in range(2, 9):
+        frac = np.clip((v - onset) / (k * 1.0) + 1 / k, 0, 1)        # 0 before onset, 1 after k visits
+        frac[idx < i0] = 0
+        m = pre + frac * (post - pre)
+        chi = float(np.sum(((f - m) / e) ** 2))
+        if chi < best_chi:
+            best_k, best_chi = k, chi
+    n = f.size
+    dbic = (chi_step + 3 * np.log(n)) - (best_chi + 4 * np.log(n))
+    return best_k, float(dbic)
 
 
 def features(s: dict) -> dict:
@@ -67,11 +113,9 @@ def features(s: dict) -> dict:
     tail_e = e[post][-3:] if post.sum() >= 3 else e[post]
     back_to_pre = bool(np.all(np.abs(tail - s["pre"]) <= 2 * tail_e)) if pre.any() else False
     at_post = bool(np.all(np.abs(tail - s["post"]) <= 2 * tail_e))
-    lo, hi = s["pre"] + 0.1 * s["step"], s["pre"] + 0.9 * s["step"]
-    inside = (f >= min(lo, hi)) & (f <= max(lo, hi)) & post
-    rise_visits = int(inside.sum())
+    rise_visits, ramp_dbic = ramp_vs_step(f, e, v, s["onset_visit"], s["pre"], s["post"])
     if up:
-        shape = "flare" if back_to_pre and not at_post else ("ramp" if rise_visits >= 3 else "step")
+        shape = "flare" if back_to_pre and not at_post else ("ramp" if ramp_dbic >= 6 else "step")
     else:
         shape = "dip" if back_to_pre and not at_post else "fade"
     if amp_class == "appearance":
@@ -118,16 +162,13 @@ def main() -> None:
     rows = {a: pd.read_csv(ROOT / "artifacts" / "e1_full" / f"neowise_rows_{a}.csv") for a in ("on", "off")}
     design = pd.read_csv(E7B / "design.csv")
     in_design = {(a, t): st for a, t, st in zip(design.arm, design.tid, design.stratum)}
+    lcs = load_tracked(floor, thr)
     events = []
-    for f in sorted(CACHE.glob("t1_*.json")):
-        _, arm, tid = f.stem.split("_")
-        tid = int(tid)
-        lc = json.loads(f.read_text())
+    for (arm, tid), lc in sorted(lcs["t1"].items()):
         st = both_ways(lc, floor)
         if st is None or st["dbic"] < thr or not (3 <= st["onset_visit"] <= 19):
             continue
-        t2f = CACHE / f"t2_{arm}_{tid}.json"
-        t2 = both_ways(json.loads(t2f.read_text()), floor) if t2f.exists() else None
+        t2 = both_ways(lcs["t2"][(arm, tid)], floor) if (arm, tid) in lcs["t2"] else None
         fe = features(st)
         ev = {"key": f"{'c' if arm == 'on' else 'x'}{tid}", "arm": arm, "tid": tid, "designation": s.designation[tid],
               "ra": float(s.ra[tid]), "dec": float(s.dec[tid]) + (60 / 3600 if arm == "off" else 0),

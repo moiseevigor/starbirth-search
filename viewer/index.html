@@ -415,6 +415,17 @@ const FIG = {
       Plotly.react(el.querySelector(".g2"), order.map(k => { const g = S.filter(r => r.primary === k); return { type: "scatter", mode: "markers", name: k, x: g.map(r => Math.log10(Math.max(r.dbic, 1))), y: g.map(r => r.amp_mag), text: g.map(r => `${r.key} · ${r.arm} · ${r.onset_year}`),
         marker: { size: 8, color: css(pal[k] || "--art"), symbol: g.map(r => r.arm === "off" ? "circle-open" : "circle") }, hovertemplate: "%{text}<br>Δm %{y:.2f} · log ΔBIC %{x:.1f}<extra></extra>" }; }).filter(t => t.x.length),
         base({ xaxis: ax({ title: { text: "log₁₀ ΔBIC" } }), yaxis: { ...base().yaxis, title: { text: "Δm (mag, brighter down)" }, autorange: "reversed" }, legend: { orientation: "h", y: -0.25, x: 0, font: { color: css("--muted"), size: 10 } }, margin: { l: 56, r: 10, t: 10, b: 90 } }), cfg); }); },
+  e9(el) { const P = D.phases.find(p => p.id === "E9"); const j = P.data;
+    if (!j) { el.innerHTML = `<p class="muted">Not run yet.</p>`; return; }
+    el.innerHTML = `<div class="grid2"><div class="card"><h3>Best alternative explanation per event</h3><div class="plot a1" style="min-height:320px"></div><p class="caption">Number of events whose best alternative explanation (by priority) is each class, clump positions vs offset controls.</p></div>
+      <div class="card"><h3>Evidence flags among clump events</h3><div class="plot a2" style="min-height:320px"></div><p class="caption">How many clump events carry each kind of evidence; an event can carry several.</p></div></div>`;
+    draw(null, () => { const keys = [...new Set([...Object.keys(j.best_on), ...Object.keys(j.best_off)])];
+      Plotly.react(el.querySelector(".a1"), [{ type: "bar", orientation: "h", name: "clump positions", y: keys, x: keys.map(k => j.best_on[k] || 0), marker: { color: css("--accent") } },
+        { type: "bar", orientation: "h", name: "offset controls", y: keys, x: keys.map(k => j.best_off[k] || 0), marker: { color: css("--art") } }],
+        base({ barmode: "group", xaxis: ax({ title: { text: "events" } }), yaxis: { ...base().yaxis, automargin: true, tickfont: { size: 10, color: css("--muted"), family: "IBM Plex Mono" } }, margin: { l: 10, r: 14, t: 10, b: 44 } }), cfg);
+      const fk = Object.keys(j.flags_on);
+      Plotly.react(el.querySelector(".a2"), [{ type: "bar", orientation: "h", y: fk, x: fk.map(k => j.flags_on[k]), marker: { color: css("--w1") }, text: fk.map(k => j.flags_on[k]), textposition: "outside" }],
+        base({ xaxis: ax({ title: { text: "clump events with the flag" } }), yaxis: { ...base().yaxis, automargin: true }, showlegend: false, margin: { l: 10, r: 24, t: 10, b: 44 } }), cfg); }); },
   e4(el) { const P = D.phases.find(p => p.id === "E4"); const j = P.data;
     if (!j) { el.innerHTML = `<p class="muted">Not run yet.</p>`; return; }
     el.innerHTML = `<div class="card"><div class="plot" style="min-height:300px"></div><p class="caption">Burst interval (years, log scale). Top row: this search, τ = N_eff × Δt × completeness / k with an exact 95% Poisson interval (k = ${j.k}, N_eff = ${j.on.n_eff} SPICY hosts not steadily seen by NEOWISE, Δt = ${j.dt_eff_yr} yr). Other rows: published intervals.</p></div>`;

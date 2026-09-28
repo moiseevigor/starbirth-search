@@ -363,10 +363,10 @@ def rescore() -> None:
         ar = archive(d["key"], d["ra"], d["dec"])
         d["archive"].update({"simbad": rec(ar["simbad"], ["main_id", "otype", "sep", "error"]),
                              "mipsgal": rec(ar["mipsgal"], ["mag_24", "fnu_24", "sep"])})
-        s = canonical_fit(d.get("forced", {})) or {}
-        d["fit"] = {k: s.get(k) for k in ("tier", "onset_visit", "direction", "dbic", "step", "pre_sig", "post_sig", "pre", "post")}
-        d["direction"] = s.get("direction", "up")
-        d["onset_year"] = round(2013.95 + (s["onset_visit"] + 0.5) * 0.5, 2) if s.get("onset_visit") is not None else None
+        fit = canonical_fit(d.get("forced", {})) or {}
+        d["fit"] = {k: fit.get(k) for k in ("tier", "onset_visit", "direction", "dbic", "step", "pre_sig", "post_sig", "pre", "post")}
+        d["direction"] = fit.get("direction", "up")
+        d["onset_year"] = round(2013.95 + (fit["onset_visit"] + 0.5) * 0.5, 2) if fit.get("onset_visit") is not None else None
         if d["arm"] == "on":
             d["offset_status"] = offset_status(d["tid"], rises, floor, thr)
             sig = ((d["forced"].get("tier2") or d["forced"].get("tier1") or {}).get("pre_sig"))

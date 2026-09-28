@@ -32,7 +32,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "research"))
 sys.path.insert(0, str(ROOT / "src"))
-from build_catalog import R_MATCH, simbad_stellar  # noqa: E402
+from build_catalog import R_MATCH, fit_hash, simbad_stellar  # noqa: E402
 from e7b_symmetric import clean  # noqa: E402
 
 OUT = ROOT / "artifacts" / "e9"
@@ -202,7 +202,8 @@ def main() -> None:
         det = json.loads((CAT / f"{e['key']}.json").read_text())
         x = explain(e, det)
         return {"key": e["key"], "arm": e["arm"], "primary": e["primary"], "designation": e["designation"],
-                "gaia_ok": bool(x.pop("_gaia_ok", True)), "simbad_ok": bool(x.pop("_simbad_ok", True)), **x}
+                "gaia_ok": bool(x.pop("_gaia_ok", True)), "simbad_ok": bool(x.pop("_simbad_ok", True)),
+                "fit_hash": fit_hash(det), **x}
     with ThreadPoolExecutor(6) as ex:
         rows = list(ex.map(one, have))
     df = pd.DataFrame(rows)

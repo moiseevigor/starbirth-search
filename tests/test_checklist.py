@@ -145,16 +145,50 @@ def test_canonical_fit_uses_tier2_only_when_confirmed():
     assert f["tier"] == 2 and f["onset_visit"] == 15 and f["direction"] == "up"
 
 
-def test_desk_build_refuses_incomplete_e9(tmp_path, monkeypatch):
+def _strict_env(tmp_path, monkeypatch, events, rows, details):
     import json
     import build_catalog as bc
-    a = tmp_path / "e9"; a.mkdir()
-    (a / "alternatives.json").write_text(json.dumps({"summary": {"complete": True, "exact_key_match": True},
-        "events": [{"key": "c1", "gaia_ok": False, "simbad_ok": True, "best": "x"}]}))     # a failed Gaia query
+    (tmp_path / "e9").mkdir(exist_ok=True); (tmp_path / "gallery").mkdir(exist_ok=True)
+    (tmp_path / "e9" / "alternatives.json").write_text(json.dumps({"summary": {}, "events": rows}))
+    (tmp_path / "gallery" / "events.json").write_text(json.dumps(events))
     monkeypatch.setattr(bc, "A", tmp_path)
+    return bc, details
+
+
+def _det(key, fit=None, diff=7.0):
+    return {"key": key, "fit": fit or {"tier": 1, "onset_visit": 8, "direction": "up"}, "diff_snr": diff, "onset_year": 2018.2, "offset_status": "quiet"}
+
+
+def _row(bc, det, **over):
+    return {"key": det["key"], "gaia_ok": True, "simbad_ok": True, "best": "x", "fit_hash": bc.fit_hash(det), **over}
+
+
+def test_desk_build_validates_against_current_inputs(tmp_path, monkeypatch):
+    import build_catalog as bc
+    d1 = _det("c1")
+    # 1) consistent: passes
+    bc, dets = _strict_env(tmp_path, monkeypatch, [{"key": "c1"}], [_row(bc, d1)], [d1])
+    assert "c1" in bc.alternatives_by_key(strict=True, details=dets)
+    # 2) a failed query is refused even when the stored summary says complete
+    bc, dets = _strict_env(tmp_path, monkeypatch, [{"key": "c1"}], [_row(bc, d1, gaia_ok=False)], [d1])
+    _refused(bc, dets, "failed evidence")
+    # 3) a newly added event without an E9 row
+    bc, dets = _strict_env(tmp_path, monkeypatch, [{"key": "c1"}, {"key": "c2"}], [_row(bc, d1)], [d1, _det("c2")])
+    _refused(bc, dets, "key sets differ")
+    # 4) a missing detail for a current event
+    bc, dets = _strict_env(tmp_path, monkeypatch, [{"key": "c1"}], [_row(bc, d1)], [])
+    _refused(bc, dets, "key sets differ")
+    # 5) duplicate E9 rows
+    bc, dets = _strict_env(tmp_path, monkeypatch, [{"key": "c1"}], [_row(bc, d1), _row(bc, d1)], [d1])
+    _refused(bc, dets, "duplicate")
+    # 6) same key, changed fit / difference statistic since E9 ran
+    bc, dets = _strict_env(tmp_path, monkeypatch, [{"key": "c1"}], [_row(bc, d1)], [_det("c1", diff=2.0)])
+    _refused(bc, dets, "different fit")
+
+
+def _refused(bc, dets, msg):
     try:
-        bc.alternatives_by_key(strict=True)
-        assert False, "a failed evidence query must refuse the desk build"
+        bc.alternatives_by_key(strict=True, details=dets)
+        assert False, f"expected refusal: {msg}"
     except RuntimeError as err:
-        assert "incomplete" in str(err)
-    assert "c1" in bc.alternatives_by_key(strict=False)
+        assert msg in str(err)

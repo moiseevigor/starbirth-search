@@ -97,6 +97,15 @@ def counterpart(ar: dict) -> str:
     return "none"
 
 
+def fit_hash(det: dict) -> str:
+    """Provenance of the inputs E9 evidence depends on: the canonical fit, the signed difference statistic and the
+    displayed onset. E9 rows store it; the desk build rejects rows whose hash no longer matches the detail."""
+    import hashlib
+    payload = {"fit": det.get("fit"), "diff_snr": None if det.get("diff_snr") is None else round(float(det["diff_snr"]), 3),
+               "onset_year": det.get("onset_year"), "offset_status": det.get("offset_status")}
+    return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()[:16]
+
+
 def canonical_fit(r: dict) -> dict | None:
     """One atomic fit per event: the confirmed tier-2 fit (its own onset AND direction) or else the tier-1 fit.
     Every consumer (difference statistic, displayed onset, checklist, E9) reads this single pair."""
@@ -306,27 +315,39 @@ def events_by_key() -> dict:
     return {e["key"]: e for e in json.loads(f.read_text())} if f.exists() else {}
 
 
-def alternatives_by_key(strict: bool = False) -> dict:
-    """E9 rows by key. strict=True (used when building the desk) refuses an E9 artifact that is not complete:
-    summary.complete and exact_key_match must hold and every row must have successful Gaia and SIMBAD queries."""
+def alternatives_by_key(strict: bool = False, details: list[dict] | None = None) -> dict:
+    """E9 rows by key. strict=True (desk build) validates against the CURRENT inputs, never the stored summary:
+    * current event keys (events.json) == E9 row keys == keys of the event details supplied, no duplicates;
+    * every row has successful Gaia and SIMBAD queries (recomputed from the rows);
+    * every row's fit_hash equals the hash of the current detail's canonical fit / difference statistic."""
     f = A / "e9" / "alternatives.json"
     if not f.exists():
         if strict:
             raise RuntimeError("artifacts/e9/alternatives.json is missing: run e9_alternatives.py")
         return {}
-    j = json.loads(f.read_text())
-    sm, rows = j.get("summary", {}), j["events"]
+    rows = json.loads(f.read_text())["events"]
     if strict:
+        ev_keys = set(events_by_key())
+        row_keys = [r["key"] for r in rows]
+        if len(row_keys) != len(set(row_keys)):
+            raise RuntimeError("E9 artifact has duplicate rows: refusing to build the desk")
+        det_map = {d["key"]: d for d in (details or []) if d["key"] in ev_keys}
+        if set(row_keys) != ev_keys or set(det_map) != ev_keys:
+            raise RuntimeError(f"E9/event/detail key sets differ (events {len(ev_keys)}, E9 rows {len(set(row_keys))}, "
+                               f"event details {len(det_map)}): rerun build_catalog and e9_alternatives")
         bad = [r["key"] for r in rows if not (r.get("gaia_ok", False) and r.get("simbad_ok", False))]
-        if not (sm.get("complete") and sm.get("exact_key_match")) or bad:
-            raise RuntimeError(f"E9 artifact is incomplete (complete={sm.get('complete')}, exact={sm.get('exact_key_match')}, "
-                               f"{len(bad)} rows with failed queries): refusing to build the desk")
+        if bad:
+            raise RuntimeError(f"{len(bad)} E9 rows have failed evidence queries: refusing to build the desk")
+        stale = [r["key"] for r in rows if r.get("fit_hash") != fit_hash(det_map[r["key"]])]
+        if stale:
+            raise RuntimeError(f"{len(stale)} E9 rows were computed from a different fit/difference statistic "
+                               f"(e.g. {stale[:3]}): rerun e9_alternatives.py")
     return {e["key"]: e for e in rows}
 
 
 def gallery_rows(details: list[dict]) -> list[dict]:
     ev = events_by_key()
-    alt = alternatives_by_key(strict=True)
+    alt = alternatives_by_key(strict=True, details=details)
     # every displayed forced-photometry event must carry E9 evidence; E1-only entries form a separate queue
     missing_e9 = sorted(d["key"] for d in details if d["key"] in ev and d["key"] not in alt)
     if missing_e9:

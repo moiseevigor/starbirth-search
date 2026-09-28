@@ -280,7 +280,7 @@ function facts() { const L = latest(), G = C.gallery, on = G.filter(g => g.arm =
 
 // ---------------- gallery
 let armF = "on";
-$("#f-arm").innerHTML = [["on", "Candidates"], ["off", "Offset controls"], ["all", "Both"]].map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${v === armF}">${l}</button>`).join("");
+$("#f-arm").innerHTML = [["on", "Candidates"], ["off", "Offset controls"], ["all", "Both"], ["e1", "E1-only (no forced event)"]].map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${v === armF}">${l}</button>`).join("");
 $("#f-arm").onclick = e => { const b = e.target.closest("button"); if (!b) return; armF = b.dataset.v; [...$("#f-arm").children].forEach(x => x.setAttribute("aria-pressed", x === b)); gallery(); };
 ["#f-verdict", "#f-review", "#f-sort", "#f-q", "#f-primary", "#f-group"].forEach(s => $(s).addEventListener("input", gallery));
 [...new Set(C.gallery.map(g => g.primary).filter(Boolean))].sort().forEach(p => $("#f-primary").insertAdjacentHTML("beforeend", `<option value="${esc(p)}">${esc(p)}</option>`));
@@ -290,7 +290,7 @@ const firstFail = v => { const m = v.match(/refuted: ([a-z_]+)/); if (m) return 
 CHECK_LABEL.no_mipsgal = "MIPSGAL 24 µm source present"; CHECK_LABEL.no_simbad_star = "SIMBAD star/YSO present";
 function filtered() { const L = latest(), q = $("#f-q").value.trim().toLowerCase(), fv = $("#f-verdict").value, fr = $("#f-review").value, so = $("#f-sort").value;
   const fp = $("#f-primary").value, by = $("#f-group").value;
-  const G = C.gallery.filter(g => (armF === "all" || g.arm === armF) && (!q || g.designation.toLowerCase().includes(q) || String(g.tid) === q)
+  const G = C.gallery.filter(g => (armF === "e1" ? g.queue === "e1-only" : (g.queue !== "e1-only" && (armF === "all" || g.arm === armF))) && (!q || g.designation.toLowerCase().includes(q) || String(g.tid) === q)
     && (!fv || vclass(g.machine_verdict) === fv) && (!fr || (fr === "none" ? !L[g.key] : L[g.key]?.decision === fr)) && (!fp || g.primary === fp));
   const key = { passes: g => -g.passes, dbic: g => -(g.dbic ?? 0), onset: g => g.onset_year ?? 9999, tid: g => g.tid, amp: g => (g.amp_mag ?? 99) }[so];
   const order = ["appearance", "outburst", "brightening", "fade", "dip", "flare", "slow ramp", "weak", "unusable baseline"];
@@ -373,7 +373,7 @@ document.addEventListener("keydown", e => { if (!$("#detail").open) return; cons
   const pick = { a: "approve", r: "refute", u: "unsure" }[e.key.toLowerCase()];
   if (pick) { const el = $(`#rv-form input[value="${pick}"]`); if (el) { el.checked = true; $("#rv-why").focus(); } } });
 
-function altBox(d) { const A = d.alternatives; if (!A) return `<div class="box"><h3>Alternative explanations (E9)</h3><p class="muted small" style="margin:0">Not tested for this entry.</p></div>`;
+function altBox(d) { const A = d.alternatives; if (!A) return `<div class="box"><h3>Alternative explanations (E9)</h3><p class="muted small" style="margin:0">E1-only entry: flagged by the catalog-level classifier, no forced-photometry event, so E9 was not run. Judge it on the light curve and archives above.</p></div>`;
   const E = A.evidence || {}, per = E.periodicity || {}, gs = E.gaia_sources || [];
   const rows = [
     ["Best alternative", `<b>${esc(A.best)}</b>`],
@@ -399,7 +399,7 @@ function renderDetail(d) {
   $("#d-body").innerHTML = `<div class="dcols">
   <div class="evidence">
     <div class="sec"><div class="kv"><span>tid <b>${d.tid}</b></span><span>RA Dec <b>${coord}</b></span><span>ℓ b <b>${fmt(P.glon, 3)} ${fmt(P.glat, 3)}</b></span><span>d <b>${fmt(P.dist)} kpc</b></span><span>M <b>${fmt(P.mass, 1)} M☉</b></span><span>T <b>${fmt(P.temp, 1)} K</b></span><span>L <b>${fmt(P.l_bol, 1)} L☉</b></span><span>70 µm limit <b>${fmt(P.ulim_70, 3)} Jy</b></span></div>
-      <div class="kv"><span>E1 class <b>${esc(d.e1_class)}</b></span><span>E7b stratum <b>${esc(d.stratum ?? "–")}</b></span><span>onset <b>${d.onset_year ?? "–"}</b></span><span>diff-image S/N <b>${fmt(d.diff_snr, 1)}</b></span><span>offset twin <b>${esc(d.offset_status ?? "n/a")}</b></span>${d.baseline_flag ? `<span class="pill unsure">negative baseline</span>` : ""}
+      <div class="kv"><span>E1 class <b>${esc(d.e1_class)}</b></span><span>E7b stratum <b>${esc(d.stratum ?? "–")}</b></span><span>onset <b>${d.onset_year ?? "–"}</b></span><span>diff-image S/N <b>${fmt(d.diff_snr, 1)}</b> ${d.direction === "down" ? "(negative peak)" : ""}</span><span>offset twin <b>${esc(d.offset_status ?? "n/a")}</b></span>${d.baseline_flag ? `<span class="pill unsure">negative baseline</span>` : ""}
         <a href="https://simbad.cds.unistra.fr/simbad/sim-coo?Coord=${encodeURIComponent(coord)}&Radius=10&Radius.unit=arcsec" target="_blank" rel="noopener">SIMBAD</a>
         <a href="https://irsa.ipac.caltech.edu/applications/finderchart/?locstr=${encodeURIComponent(coord)}" target="_blank" rel="noopener">IRSA finder chart</a>
         <a href="https://aladin.cds.unistra.fr/AladinLite/?target=${encodeURIComponent(coord)}&fov=0.05&survey=CDS%2FP%2FunWISE%2Fcolor-W2-W1W2-W1" target="_blank" rel="noopener">Aladin Lite</a></div></div>

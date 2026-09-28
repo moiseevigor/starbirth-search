@@ -138,9 +138,10 @@ def visit_medians(ra: float, dec: float, per_visit: int = 8, npix: int = 64,
 
 
 def diff_snr(ra: float, dec: float, onset_visit: int, r_src_px: float = 2.0, r_bkg_px: float = 6.0,
-             inject=None) -> float | None:
-    """Peak of (median post-onset stack - median pre-onset stack) within r_src_px (3") of the
-    target, in units of the robust std of the difference map outside r_bkg_px (9")."""
+             inject=None, direction: str = "up") -> float | None:
+    """Signed point-source statistic in (median post-onset stack - median pre-onset stack) within r_src_px (3")
+    of the target, in units of the robust std of the difference map outside r_bkg_px (9"): the positive peak
+    for a rise (direction 'up'), the magnitude of the negative peak for a fade ('down')."""
     meds, _, _ = visit_medians(ra, dec, inject=inject)
     pre = [m for v, m in meds.items() if v < onset_visit]
     post = [m for v, m in meds.items() if v >= onset_visit]
@@ -152,7 +153,10 @@ def diff_snr(ra: float, dec: float, onset_visit: int, r_src_px: float = 2.0, r_b
     rr = np.hypot(xx - (n - 1) / 2, yy - (n - 1) / 2)
     bkg = d[(rr > r_bkg_px) & np.isfinite(d)]
     sd = 1.4826 * np.median(np.abs(bkg - np.median(bkg)))
-    return float(np.nanmax(d[rr <= r_src_px]) / sd) if sd > 0 else None
+    if sd <= 0:
+        return None
+    core = d[rr <= r_src_px]
+    return float(np.nanmax(core) / sd) if direction == "up" else float(-np.nanmin(core) / sd)
 
 
 def neowise_stacks(key: str, ra: float, dec: float, per_visit: int = 8, npix: int = 64,

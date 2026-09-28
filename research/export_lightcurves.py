@@ -51,9 +51,20 @@ def main() -> None:
     manifest = {"created": str(date.today()), "floor": res["floor"], "threshold_dbic": res["threshold_dbic"],
                 "git_commit": subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, cwd=ROOT).stdout.strip(),
                 "universe_size": len(uni), "tiers": {}}
+    # required tier-2 keys come from tracked inputs only: every E7b tier-1 rise (results.json) and every twin
+    # (data/twins.json, both arms of the pair); any other existing tier-2 curve is exported as optional
+    required_t2 = {f"{r['arm']}_{int(r['tid'])}" for r in res["rises"]}
+    twins = json.loads((DATA / "twins.json").read_text()) if (DATA / "twins.json").exists() else []
+    required_t2 |= {f"off_{int(t)}" for t in twins}
+    manifest["required_t2"] = sorted(required_t2)
     for tier in (1, 2):
         rows, status = [], {}
-        expected = uni if tier == 1 else {k: v for k, v in uni.items() if (CACHE / f"t2_{k}.json").exists()}
+        if tier == 1:
+            expected = uni
+        else:
+            optional = {k: {"group": "optional", "stratum": uni.get(k, {}).get("stratum", "audit/injection")}
+                        for k in (f.stem[3:] for f in CACHE.glob("t2_*.json")) if k not in required_t2}
+            expected = {**{k: {**uni.get(k, {"group": "required"}), "required": True} for k in required_t2}, **optional}
         for key, meta in expected.items():
             f = CACHE / f"t{tier}_{key}.json"
             if not f.exists():
@@ -69,10 +80,11 @@ def main() -> None:
                 arm, tid = key.split("_")
                 rows += [{"arm": arm, "tid": int(tid), "visit": v, "flux": round(x, 3), "err": round(e, 3)}
                          for v, x, e in zip(lc["visit"], lc["flux"], lc["err"])]
-        missing = sorted(k for k, v in status.items() if v["status"] == "missing")
-        if tier == 1 and missing:
-            raise SystemExit(f"tier 1: {len(missing)} expected light curves are missing from the cache "
-                             f"(e.g. {missing[:5]}); measure them before exporting")
+        req = {k for k, v in expected.items() if tier == 1 or v.get("required")}
+        bad = sorted(k for k, v in status.items() if k in req and v["status"] in ("missing", "failed"))
+        if bad:
+            raise SystemExit(f"tier {tier}: {len(bad)} required light curves are missing or failed "
+                             f"(e.g. {bad[:5]}); measure them before exporting")
         out = DATA / f"lightcurves_t{tier}.csv.gz"
         with gzip.open(out, "wt", newline="") as g:
             pd.DataFrame(rows).sort_values(["arm", "tid", "visit"]).to_csv(g, index=False)

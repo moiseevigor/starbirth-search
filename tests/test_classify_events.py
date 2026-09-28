@@ -65,3 +65,26 @@ def test_manifest_mismatch_fails_closed(tmp_path, monkeypatch):
         assert False
     except RuntimeError as err:
         assert "expected universe" in str(err)
+
+
+def test_ramp_duration_uses_visit_numbers_not_row_index():
+    # a 4-visit ramp with visits 9 and 10 missing: row indices would compress it to ~2 rows
+    v = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20])
+    f = 1000 + 600 * np.clip((v - 8 + 1) / 4, 0, 1) + np.random.default_rng(2).normal(0, 20, v.size)
+    k, dbic = ramp_vs_step(f, np.full(v.size, 20.0), v)
+    assert dbic >= 6 and 3 <= k <= 5
+
+
+def test_export_marks_failed_required_curves_fatal(tmp_path, monkeypatch):
+    import json
+    import export_lightcurves as ex
+    monkeypatch.setattr(ex, "CACHE", tmp_path / "cache"); (tmp_path / "cache").mkdir()
+    monkeypatch.setattr(ex, "DATA", tmp_path / "data"); monkeypatch.setattr(ex, "E7B", tmp_path / "e7b"); (tmp_path / "e7b").mkdir()
+    (tmp_path / "e7b" / "results.json").write_text(json.dumps({"floor": {"s_abs": 0, "s_rel": 0}, "threshold_dbic": 47, "rises": []}))
+    monkeypatch.setattr(ex, "expected_universe", lambda: {"on_1": {"group": "design", "stratum": "none"}})
+    (tmp_path / "cache" / "t1_on_1.json").write_text(json.dumps({"error": "no frames"}))
+    try:
+        ex.main()
+        assert False, "a failed required curve must abort the export"
+    except SystemExit as err:
+        assert "failed" in str(err)

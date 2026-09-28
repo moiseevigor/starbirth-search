@@ -162,7 +162,9 @@ def explain(ev: dict, det: dict) -> dict:
         # physical alternatives that need no catalogue: a source already in the aperture before onset, or a flux
         # change with no point source in the difference image (extended emission or sky-level change)
         "uncatalogued_prior": bool(fp1.get("pre_sig") is not None and fp1["pre_sig"] >= 3),
+        # direction-aware: diff_snr is the positive peak for rises and the negative-peak magnitude for fades
         "no_point_source": bool(det.get("diff_snr") is not None and det["diff_snr"] < 5),
+        "diff_direction": det.get("direction"),
         "_gaia_ok": bool(g.get("ok")),
     }
     ev_["evidence"] = {

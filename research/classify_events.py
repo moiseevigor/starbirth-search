@@ -55,9 +55,17 @@ def load_tracked(floor: Floor, thr: float) -> dict:
             if set(st) != uni:
                 raise RuntimeError(f"t1 manifest keys differ from the expected universe: {len(uni - set(st))} absent, "
                                    f"{len(set(st) - uni)} unexpected")
-            bad = sorted(k for k, v in st.items() if v["status"] == "missing")
-            if bad:
-                raise RuntimeError(f"t1: {len(bad)} expected light curves missing: {bad[:5]}")
+            required = uni
+        else:
+            required = set(man.get("required_t2", []))
+            res_rises = {f"{r['arm']}_{int(r['tid'])}" for r in json.loads((ROOT / "artifacts" / "e7b" / "results.json").read_text())["rises"]}
+            if not res_rises <= required:
+                raise RuntimeError("t2: manifest required set does not include every E7b rise")
+            if not required <= set(st):
+                raise RuntimeError(f"t2: {len(required - set(st))} required keys absent from the manifest")
+        bad = sorted(k for k in required if st.get(k, {}).get("status") in (None, "missing", "failed"))
+        if bad:
+            raise RuntimeError(f"{tier}: {len(bad)} required light curves missing or failed: {bad[:5]}")
         with gzip.open(f, "rt") as g:
             df = pd.read_csv(g)
         got = {f"{a}_{t}" for a, t in zip(df.arm, df.tid)}
@@ -99,18 +107,18 @@ def _wls_two_level(f, e, shape):
 
 def ramp_vs_step(f, e, v, *_ignored) -> tuple[int, float]:
     """Joint fit of onset, duration and both levels for a linear ramp (4 params) against the best step (3 params),
-    each minimised by weighted least squares over every onset; returns (best ramp duration in visits,
-    BIC_step - BIC_ramp). Positive => ramp preferred."""
-    n, idx = f.size, np.arange(f.size)
+    each minimised by weighted least squares over every onset; shapes are built on the actual visit numbers so
+    missing epochs are not compressed. Returns (best ramp duration in visits, BIC_step - BIC_ramp)."""
+    n, v = f.size, np.asarray(v, float)
     best_step = np.inf
     for i0 in range(3, n - 2):
-        chi, _ = _wls_two_level(f, e, (idx >= i0).astype(float))
+        chi, _ = _wls_two_level(f, e, (v >= v[i0]).astype(float))
         best_step = min(best_step, chi)
     best_ramp, best_k = np.inf, 1
     for i0 in range(3, n - 2):
         for k in range(2, 9):
-            shape = np.clip((idx - i0 + 1) / k, 0, 1)
-            shape[idx < i0] = 0
+            shape = np.clip((v - v[i0] + 1) / k, 0, 1)
+            shape[v < v[i0]] = 0
             if shape[-1] < 1:                                    # ramp must complete inside the baseline
                 continue
             chi, _ = _wls_two_level(f, e, shape)

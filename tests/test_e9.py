@@ -49,3 +49,18 @@ def test_every_displayed_alternative_has_inspectable_evidence():
             assert any("LPV" == s.get("best_class_name") for s in E["gaia_sources"]) or E["simbad_rows"]
         checked += 1
     assert checked > 0 or not any(g.get("alternative") for g in js["gallery"])
+
+
+def test_diff_statistic_is_direction_aware():
+    import numpy as np
+    from viewer_imagery import diff_snr
+    import viewer_imagery as vi
+    n = 64
+    yy, xx = np.indices((n, n)); rr = np.hypot(xx - (n - 1) / 2, yy - (n - 1) / 2)
+    src = 100 * np.exp(-rr**2 / 2)
+    rng = np.random.default_rng(0)
+    pre = {v: 5 + src + rng.normal(0, 1, (n, n)) for v in range(0, 5)}      # bright before
+    post = {v: 5 + rng.normal(0, 1, (n, n)) for v in range(5, 10)}          # gone after: a fade
+    vi.visit_medians = lambda ra, dec, inject=None: ({**pre, **post}, {}, {})
+    assert diff_snr(0, 0, 5, direction="down") > 5                          # fade detected as a negative peak
+    assert diff_snr(0, 0, 5, direction="up") < 5                            # and not as a positive one

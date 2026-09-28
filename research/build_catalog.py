@@ -234,7 +234,9 @@ def detail(c: dict, rows: dict, rises: dict, props: pd.DataFrame) -> dict:
     }
     det["images"] = hips_cutouts(key, ra, dec)
     det["epochs"] = neowise_stacks(key, ra, dec)
-    det["diff_snr"] = diff_snr(ra, dec, onset) if onset is not None else None
+    direction = "down" if (s.get("step") is not None and s["step"] < 0) else "up"
+    det["direction"] = direction
+    det["diff_snr"] = diff_snr(ra, dec, onset, direction=direction) if onset is not None else None
     det["onset_year"] = round(2013.95 + (onset + 0.5) * 0.5, 2) if onset is not None else None
     det["checklist"], det["machine_verdict"] = checklist(det)
     return det
@@ -293,11 +295,16 @@ def alternatives_by_key() -> dict:
 def gallery_rows(details: list[dict]) -> list[dict]:
     ev = events_by_key()
     alt = alternatives_by_key()
+    # every displayed forced-photometry event must carry E9 evidence; E1-only entries form a separate queue
+    missing_e9 = sorted(d["key"] for d in details if d["key"] in ev and d["key"] not in alt)
+    if missing_e9:
+        raise RuntimeError(f"{len(missing_e9)} displayed events lack E9 evidence (e.g. {missing_e9[:5]}): run e9_alternatives.py")
     return [{k: d[k] for k in ("key", "tid", "arm", "designation", "ra", "dec", "e1_class", "stratum",
                                "machine_verdict", "onset_year", "diff_snr")}
             | {k: ev.get(d["key"], {}).get(k) for k in EVENT_FIELDS}
             | {"d_w1w2": (ev.get(d["key"], {}).get("colour") or {}).get("d_w1w2"), "counterpart": counterpart(d["archive"]),
-               "alternative": alt.get(d["key"], {}).get("best")}
+               "alternative": alt.get(d["key"], {}).get("best"),
+               "queue": "event" if d["key"] in ev else "e1-only", "direction": d.get("direction")}
             | {"props": d["props"], "confirmed": d["forced"]["confirmed"], "offset_status": d.get("offset_status"),
                "dbic": (d["forced"]["tier2"] or d["forced"]["tier1"] or {}).get("dbic"),
                "thumb": f"img/{d['key']}/neowise_diff.png" if d["epochs"] else None,
@@ -356,8 +363,29 @@ def write_index(details, s, on_cls, off_cls, res, measured, rises, spicy, cands)
     print(f"catalog {len(cat)} rows, gallery {len(gallery)} candidates -> {OUT}")
 
 
+def rediff(workers: int = 6) -> None:
+    """Recompute the direction-aware difference-image statistic for every detail (cached frames; no network)."""
+    ev = events_by_key()
+
+    def one(f):
+        d = json.loads(f.read_text())
+        e = ev.get(d["key"])
+        s = d["forced"].get("tier2") or d["forced"].get("tier1") or {}
+        onset = s.get("onset_visit")
+        direction = (e or {}).get("direction") or ("down" if (s.get("step") is not None and s["step"] < 0) else "up")
+        d["direction"] = direction
+        d["diff_snr"] = diff_snr(d["ra"], d["dec"], onset, direction=direction) if onset is not None else None
+        f.write_text(json.dumps(clean(d)))
+        return d["key"], d["diff_snr"]
+    with ThreadPoolExecutor(workers) as ex:
+        out = list(ex.map(one, sorted(OUT.glob("*.json"))))
+    print("rediff done:", len(out))
+
+
 if __name__ == "__main__":
-    if "--measure-offsets" in sys.argv:
+    if "--rediff" in sys.argv:
+        rediff()
+    elif "--measure-offsets" in sys.argv:
         _s = pd.read_csv(A / "e1_full" / "pilot_targets.csv")
         _tids = [json.loads(f.read_text())["tid"] for f in OUT.glob("c*.json")]
         print("measured offset twins:", measure_offset_twins(_tids, _s))

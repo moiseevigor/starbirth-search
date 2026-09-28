@@ -226,8 +226,8 @@ PHASES = [
              "sources within 2\" with their variability class (vari_classifier_result); Lomb-Scargle on the forced "
              "light curve for P = 150-1500 d (FAP < 0.01; heavily aliased at 6-month cadence, so only "
              "'sinusoid-consistent'); extinction rule from the W1-W2 change (fade + redder, or brightening + bluer); "
-             "blend from clustered NEOWISE catalog positions; artefact from unusable baselines, rising offset twins "
-             "or low-coverage onsets; prior AllWISE/GLIMPSE/MIPSGAL source; and two catalogue-free physical "
+             "blend from clustered NEOWISE catalog positions; artefact from unusable baselines or rising offset twins "
+             "(low coverage at onset is reported, not ranked); prior AllWISE/GLIMPSE/MIPSGAL source; and two catalogue-free physical "
              "alternatives: an uncatalogued source already in the aperture (forced pre-onset flux >= 3 sigma) and a "
              "flux change with no point source in the difference image (< 5 sigma: extended or sky-level). One best "
              "alternative by priority.",

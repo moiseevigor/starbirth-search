@@ -23,3 +23,29 @@ def test_e9_verdict_is_withheld_when_incomplete():
         return
     sm = json.load(open(f))["summary"]
     assert "complete" in sm and (sm["complete"] == (sm["n_with_details"] == sm["n_events"] and not sm["gaia_failed"]))
+
+
+def test_every_displayed_alternative_has_inspectable_evidence():
+    import json
+    from pathlib import Path as P
+    root = P(__file__).parents[1]
+    idx = root / "viewer" / "catalog" / "index.js"
+    if not idx.exists():
+        return
+    js = json.loads(idx.read_text().split("=", 1)[1].rstrip().rstrip(";"))
+    checked = 0
+    for g in js["gallery"]:
+        if not g.get("alternative"):
+            continue
+        d = json.loads((root / "viewer" / "catalog" / f"{g['key']}.json").read_text())
+        A = d.get("alternatives")
+        if A is None:
+            continue                     # details built before E9 ran: rescore refreshes them
+        assert A["best"] == g["alternative"] and A["evidence"] and A["priority_path"]
+        E = A["evidence"]
+        if A["best"].startswith("known star with optical counterpart"):
+            assert E["gaia_sources"] or E["simbad_rows"] or E["spicy_rows"]
+        if A["best"].startswith("AGB"):
+            assert any("LPV" == s.get("best_class_name") for s in E["gaia_sources"]) or E["simbad_rows"]
+        checked += 1
+    assert checked > 0 or not any(g.get("alternative") for g in js["gallery"])

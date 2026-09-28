@@ -22,14 +22,18 @@ def _curve(kind, seed=0):
 
 def test_noisy_step_is_not_a_ramp():
     f, e, v = _curve("step")
-    k, dbic = ramp_vs_step(f, e, v, 8, 1000, 1600)
+    k, dbic = ramp_vs_step(f, e, v)
     assert dbic < 6
 
 
-def test_gradual_rise_is_a_ramp():
+def test_gradual_rise_is_a_ramp_end_to_end():
+    # the onset is found by the step scan (as in production), not supplied: the joint ramp fit must still win
+    from classify_events import both_ways, features
+    from starbirth.features.forced_phot import Floor
     f, e, v = _curve("ramp")
-    k, dbic = ramp_vs_step(f, e, v, 8, 1000, 1600)
-    assert dbic >= 6 and 3 <= k <= 7
+    st = both_ways({"visit": list(v), "flux": list(f), "err": list(e)}, Floor(0.0, 0.0))
+    fe = features(st)
+    assert fe["shape"] == "ramp" and 3 <= fe["rise_visits"] <= 7
 
 
 def test_manifest_mismatch_fails_closed(tmp_path, monkeypatch):
@@ -43,11 +47,21 @@ def test_manifest_mismatch_fails_closed(tmp_path, monkeypatch):
     with gzip.open(f, "wt") as g:
         g.write("arm,tid,visit,flux,err\non,1,0,1.0,1.0\n")
     man = {"threshold_dbic": 47.0, "floor": {"s_abs": 0.0, "s_rel": 0.0},
-           "tiers": {"t1": {"file": f.name, "sha256": hashlib.sha256(f.read_bytes()).hexdigest(), "keys": {"on_1": {"stratum": "x"}, "on_2": {"stratum": "x"}}}}}
+           "tiers": {"t1": {"file": f.name, "sha256": hashlib.sha256(f.read_bytes()).hexdigest(),
+                            "keys": {"on_1": {"stratum": "x", "status": "ok"}, "on_2": {"stratum": "x", "status": "missing"}}}}}
     (data / "lightcurves_manifest.json").write_text(json.dumps(man))
     monkeypatch.setattr(ce, "ROOT", tmp_path)
+    import export_lightcurves as ex
+    monkeypatch.setattr(ex, "expected_universe", lambda: {"on_1": {}, "on_2": {}})
     try:
         ce.load_tracked(Floor(0.0, 0.0), 47.0)
-        assert False, "missing key must fail"
+        assert False, "a missing expected key must fail"
     except RuntimeError as err:
         assert "missing" in str(err)
+    # a manifest that silently drops an expected key must also fail (the universe is independent of the cache)
+    monkeypatch.setattr(ex, "expected_universe", lambda: {"on_1": {}, "on_2": {}, "on_3": {}})
+    try:
+        ce.load_tracked(Floor(0.0, 0.0), 47.0)
+        assert False
+    except RuntimeError as err:
+        assert "expected universe" in str(err)

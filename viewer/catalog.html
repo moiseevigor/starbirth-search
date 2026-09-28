@@ -373,6 +373,19 @@ document.addEventListener("keydown", e => { if (!$("#detail").open) return; cons
   const pick = { a: "approve", r: "refute", u: "unsure" }[e.key.toLowerCase()];
   if (pick) { const el = $(`#rv-form input[value="${pick}"]`); if (el) { el.checked = true; $("#rv-why").focus(); } } });
 
+function altBox(d) { const A = d.alternatives; if (!A) return `<div class="box"><h3>Alternative explanations (E9)</h3><p class="muted small" style="margin:0">Not tested for this entry.</p></div>`;
+  const E = A.evidence || {}, per = E.periodicity || {}, gs = E.gaia_sources || [];
+  const rows = [
+    ["Best alternative", `<b>${esc(A.best)}</b>`],
+    ["Priority path", (A.priority_path || []).map(p => `<span class="pill ${p.fired ? "refute" : "none"}" style="text-transform:none">${esc(p.flag)}</span>`).join(" ")],
+    ["Gaia DR3 within 2″", E.gaia_ok ? (gs.length ? gs.map(s => `${s.source_id} · G ${s.phot_g_mean_mag != null ? Number(s.phot_g_mean_mag).toFixed(2) : "–"}${s.best_class_name ? " · " + esc(s.best_class_name) : ""}${s.phot_variable_flag === "VARIABLE" ? " · variable" : ""}`).join("<br>") : "none") : `<span class="msg err">query failed</span>`],
+    ["SIMBAD in aperture", E.simbad_ok ? ((E.simbad_rows || []).map(r => `${esc(r.main_id)} (${esc(r.otype)}, ${Number(r.sep).toFixed(1)}″)`).join("<br>") || "none") : `<span class="msg err">query failed</span>`],
+    ["SPICY in aperture", (E.spicy_rows || []).map(r => `SPICY ${r.spicy} ${esc(r.class)} (${Number(r.sep).toFixed(1)}″)`).join("<br>") || "none"],
+    ["Prior sources", ["allwise", "glimpse", "mipsgal"].map(k => `${k}: ${(E.prior_rows?.[k] || []).length}`).join(" · ")],
+    ["Periodicity", per.ok ? `P ${per.period_d} d · FAP ${Number(per.fap).toExponential(1)} · χ² sin ${per.chi2_sin} vs step ${per.chi2_step}${per.window_peak ? " · sampling-window peak" : ""} → ${per.periodic ? "sinusoid-consistent" : "not periodic"}` : "n/a"],
+    ["Δ(W1−W2)", E.d_w1w2 == null ? "not measurable" : (E.d_w1w2 > 0 ? "+" : "") + E.d_w1w2],
+    ["Blend / baseline / diff", `${E.blend_sources ?? "–"} source(s) · pre ${fmt(E.pre_sig, 1)}σ · diff S/N ${fmt(E.diff_snr, 1)} · twin ${esc(E.offset_status ?? "n/a")}${E.onset_coverage_low ? " · low coverage at onset" : ""}`]];
+  return `<div class="box"><h3>Alternative explanations (E9)</h3><dl class="facts" style="grid-template-columns:auto 1fr;gap:4px 12px;border:none;padding:0;margin:0">${rows.map(([k, v]) => `<div style="display:contents"><dt class="muted small">${k}</dt><dd class="small" style="margin:0">${v}</dd></div>`).join("")}</dl></div>`; }
 function tableHTML(rows, cols) { if (!rows || !rows.length) return `<p class="muted small" style="margin:0">None within the search radius.</p>`;
   return `<div class="tablewrap"><table><thead><tr>${cols.map(c => `<th style="cursor:default">${esc(c)}</th>`).join("")}</tr></thead><tbody>${rows.map(r => `<tr>${cols.map(c => `<td class="mono">${esc(typeof r[c] === "number" ? +r[c].toFixed(3) : r[c])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`; }
 
@@ -420,6 +433,7 @@ function renderDetail(d) {
       <div class="controls"><input type="text" id="rv-who" name="reviewer" maxlength="60" required style="flex:1"><button type="submit" id="rv-save" class="primary">Save</button></div>
       <div class="msg" id="rv-msg"></div>
       <div class="hint"><span><kbd>A</kbd><kbd>R</kbd><kbd>U</kbd> choose</span><span><kbd>Ctrl</kbd>+<kbd>Enter</kbd> save</span><span><kbd>N</kbd> next unreviewed</span></div></form>
+    ${altBox(d)}
     <div class="box"><h3>History · ${H.length}</h3><div class="hist" id="rv-hist">${H.map(x => `<div><span class="pill ${esc(x.decision)}">${esc(x.decision)}</span> <span class="mono small">${esc(x.time)} · ${esc(x.reviewer)}</span>${x.tags?.length ? `<div class="small muted">${x.tags.map(esc).join(" · ")}</div>` : ""}<div>${esc(x.reasoning)}</div></div>`).join("") || `<p class="muted small" style="margin:0">No decisions yet.</p>`}</div></div>
   </aside></div>`;
   // images

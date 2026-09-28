@@ -10,8 +10,8 @@ For every classified event (artifacts/gallery/events.json, both arms) with a cat
                  forced light curve (P = 150-1500 d, FAP < 0.01; caveat: ~6-month cadence aliases)
   extinction     fade that reddens (d(W1-W2) >= +0.2) or brightening that turns bluer (<= -0.2)
   blend          >= 2 distinct NEOWISE catalog sources within 6" (positions clustered at > 2")
-  artefact       unusable baseline, rising offset twin, or onset in a visit with < 50% of the
-                 median field coverage
+  artefact       rising offset twin (the field itself varies); an unusable (negative) pre-onset baseline is
+                 its own lower rung: it voids the amplitude, not the event; low onset coverage is only reported
   prior source   AllWISE 2010 / GLIMPSE / MIPSGAL source within the aperture (a brightening of
                  something that was already there)
 Best alternative (priority): artefact > known variable > known YSO / star > AGB-LPV > extinction >
@@ -124,7 +124,9 @@ def blend_count(e1: dict) -> int:
 def explain(ev: dict, det: dict) -> dict:
     ar, fp = det["archive"], det["forced"]
     within = lambda rows: [r for r in rows or [] if (r.get("sep") if r.get("sep") is not None else 99) <= R_MATCH]  # noqa: E731
-    sb = within(ar.get("simbad", []))
+    sb_all = ar.get("simbad")
+    simbad_ok = sb_all is not None and not any(("error" in r and r.get("error")) for r in sb_all) and all(r.get("sep") is not None for r in sb_all)
+    sb = within(sb_all or [])
     sb_types = [str(r.get("otype", "")) for r in sb if not str(r.get("main_id", "")).startswith(("AGAL", "HIGALBM", "[MML2017]", "[EMM"))]
     g = gaia(det["ra"], det["dec"], det["key"])
     gsrc = g["sources"]
@@ -151,7 +153,11 @@ def explain(ev: dict, det: dict) -> dict:
         "periodic": per, "known_yso": bool(within(ar.get("spicy", [])) or any("Y*" in t or "TT*" in t or "Or*" in t or "FU*" in t for t in sb_types) or "YSO" in gclass),
         "extinction": bool(col is not None and ((not up and col >= 0.2) or (up and col <= -0.2))),
         "d_w1w2": col, "blend": blend_count(det["e1_rows"]) >= 2,
-        "artefact": bool(ev["primary"] == "unusable baseline" or (det.get("offset_status") or "").startswith("rise") or low_cov),
+        # artefact = the measurement itself is untrustworthy: a failed sky model or a rising offset twin.
+        # Low field coverage at the onset visit only blurs the onset time and is reported, not ranked.
+        "artefact": bool((det.get("offset_status") or "").startswith("rise")),      # the field itself varies
+        "bad_baseline": bool(ev["primary"] == "unusable baseline"),                 # pre-onset measurement unusable
+        "onset_coverage_low": low_cov,
         "prior_source": bool(within(ar.get("allwise", [])) or within(ar.get("glimpse", [])) or within(ar.get("mipsgal", []))),
         # physical alternatives that need no catalogue: a source already in the aperture before onset, or a flux
         # change with no point source in the difference image (extended emission or sky-level change)
@@ -159,15 +165,25 @@ def explain(ev: dict, det: dict) -> dict:
         "no_point_source": bool(det.get("diff_snr") is not None and det["diff_snr"] < 5),
         "_gaia_ok": bool(g.get("ok")),
     }
+    ev_["evidence"] = {
+        "simbad_ok": simbad_ok, "simbad_rows": sb, "spicy_rows": within(ar.get("spicy", [])),
+        "gaia_ok": bool(g.get("ok")), "gaia_sources": gsrc, "periodicity": per, "d_w1w2": col,
+        "blend_sources": blend_count(det["e1_rows"]), "pre_sig": fp1.get("pre_sig"), "diff_snr": det.get("diff_snr"),
+        "offset_status": det.get("offset_status"), "onset_coverage_low": low_cov,
+        "prior_rows": {"allwise": within(ar.get("allwise", [])), "glimpse": within(ar.get("glimpse", [])), "mipsgal": within(ar.get("mipsgal", []))},
+    }
+    ev_["_simbad_ok"] = simbad_ok
     order = [("artefact", "artefact / bad baseline"), ("known_variable", "known variable star (Gaia/SIMBAD)"),
              ("known_yso", "known YSO (SPICY/SIMBAD/Gaia): outburst or variability of an existing protostar"),
              ("known_star", "known star with optical counterpart"), ("agb_lpv", "AGB / long-period variable"),
              ("extinction", "variable extinction (colour follows the flux)"), ("blend", "blend of several sources"),
              ("prior_source", "brightening of a source already catalogued (AllWISE/GLIMPSE/MIPSGAL)"),
              ("uncatalogued_prior", "variability of an uncatalogued source already in the aperture (pre-onset flux >= 3 sigma)"),
+             ("bad_baseline", "unusable pre-onset baseline (sky-model failure; amplitude not measurable)"),
              ("no_point_source", "no point source in the difference image (extended emission or sky-level change)")]
     best = next((lab for k, lab in order if ev_[k]), "unexplained by the archives")
     ev_["best"] = best
+    ev_["priority_path"] = [{"flag": k, "label": lab, "fired": bool(ev_[k])} for k, lab in order]
     return ev_
 
 
@@ -180,18 +196,21 @@ def main() -> None:
         det = json.loads((CAT / f"{e['key']}.json").read_text())
         x = explain(e, det)
         return {"key": e["key"], "arm": e["arm"], "primary": e["primary"], "designation": e["designation"],
-                "gaia_ok": bool(x.pop("_gaia_ok", True)), **x}
+                "gaia_ok": bool(x.pop("_gaia_ok", True)), "simbad_ok": bool(x.pop("_simbad_ok", True)), **x}
     with ThreadPoolExecutor(6) as ex:
         rows = list(ex.map(one, have))
     df = pd.DataFrame(rows)
     missing = sorted(e["key"] for e in events if not (CAT / f"{e['key']}.json").exists())
     gaia_failed = sorted(r["key"] for r in rows if not r.get("gaia_ok", True))
-    complete = not missing and not gaia_failed
-    summary = {"n_events": len(events), "n_with_details": len(rows), "complete": complete,
-               "missing_details": missing, "gaia_failed": gaia_failed,
+    simbad_failed = sorted(r["key"] for r in rows if not r.get("simbad_ok", True))
+    keys_events, keys_tested = [e["key"] for e in events], [r["key"] for r in rows]
+    exact = len(set(keys_events)) == len(keys_events) and set(keys_events) == set(keys_tested) and len(keys_tested) == len(set(keys_tested))
+    complete = exact and not missing and not gaia_failed and not simbad_failed
+    summary = {"n_events": len(events), "n_with_details": len(rows), "complete": complete, "exact_key_match": exact,
+               "missing_details": missing, "gaia_failed": gaia_failed, "simbad_failed": simbad_failed,
                "best_on": df[df.arm == "on"].best.value_counts().to_dict(),
                "best_off": df[df.arm == "off"].best.value_counts().to_dict(),
-               "flags_on": {k: int(df[df.arm == "on"][k].sum()) for k in ("artefact", "known_variable", "known_yso", "known_star", "agb_lpv", "extinction", "blend", "prior_source", "uncatalogued_prior", "no_point_source")},
+               "flags_on": {k: int(df[df.arm == "on"][k].sum()) for k in ("artefact", "bad_baseline", "known_variable", "known_yso", "known_star", "agb_lpv", "extinction", "blend", "prior_source", "uncatalogued_prior", "no_point_source")},
                "colour_available_on": int(df[df.arm == "on"].d_w1w2.notna().sum()),
                "unexplained_on": [r["key"] for r in rows if r["arm"] == "on" and r["best"].startswith("unexplained")],
                "gaia_ok": int(sum(1 for r in rows if r.get("periodic")))}

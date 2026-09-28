@@ -34,27 +34,38 @@ NEO0 = 56640.0
 
 
 def load_tracked(floor: Floor, thr: float) -> dict:
-    """Light curves from the tracked export; verifies the manifest (hashes, calibration) and fails on any mismatch."""
+    """Light curves from the tracked export, validated against the INDEPENDENT expected universe
+    (export_lightcurves.expected_universe): every expected key must be ok, empty or failed in the manifest,
+    every ok key must have rows, and no extra rows may exist. Fails closed on any mismatch."""
     import gzip
     import hashlib
+    from export_lightcurves import expected_universe
     data = ROOT / "data"
     man = json.loads((data / "lightcurves_manifest.json").read_text())
     if abs(man["threshold_dbic"] - thr) > 1e-9 or man["floor"] != {"s_abs": floor.s_abs, "s_rel": floor.s_rel}:
         raise RuntimeError("manifest calibration differs from artifacts/e7b/results.json: re-run export_lightcurves.py")
+    uni = set(expected_universe())
     out = {}
     for tier, m in man["tiers"].items():
         f = data / m["file"]
         if hashlib.sha256(f.read_bytes()).hexdigest() != m["sha256"]:
             raise RuntimeError(f"{f.name} does not match its manifest hash")
+        st = m["keys"]
+        if tier == "t1":
+            if set(st) != uni:
+                raise RuntimeError(f"t1 manifest keys differ from the expected universe: {len(uni - set(st))} absent, "
+                                   f"{len(set(st) - uni)} unexpected")
+            bad = sorted(k for k, v in st.items() if v["status"] == "missing")
+            if bad:
+                raise RuntimeError(f"t1: {len(bad)} expected light curves missing: {bad[:5]}")
         with gzip.open(f, "rt") as g:
             df = pd.read_csv(g)
         got = {f"{a}_{t}" for a, t in zip(df.arm, df.tid)}
-        exp = set(m["keys"])
-        if got != exp:
-            raise RuntimeError(f"{tier}: {len(exp - got)} manifest keys missing, {len(got - exp)} extra: "
-                               f"{sorted(exp ^ got)[:5]}")
+        exp_ok = {k for k, v in st.items() if v["status"] == "ok"}
+        if got != exp_ok:
+            raise RuntimeError(f"{tier}: rows for {len(exp_ok - got)} ok keys missing, {len(got - exp_ok)} extra")
         out[tier] = {(a, int(t)): {"visit": g.visit.tolist(), "flux": g.flux.tolist(), "err": g.err.tolist(),
-                                   "stratum": m["keys"][f"{a}_{t}"]["stratum"]}
+                                   "stratum": st[f"{a}_{t}"]["stratum"]}
                      for (a, t), g in df.groupby(["arm", "tid"])}
     return out
 
@@ -76,23 +87,36 @@ def both_ways(lc: dict, floor: Floor) -> dict | None:
             "post_sig": float(f[post].mean() / sem(post)), "f": f, "e": e2, "v": v, "pre_m": pre, "post_m": post}
 
 
-def ramp_vs_step(f, e, v, onset, pre, post) -> tuple[int, float]:
-    """Compare a step at `onset` with linear ramps from `onset` lasting k visits (k = 2..8); returns the ramp
-    duration (visits) and delta-BIC(step - ramp); positive = the ramp is preferred (one extra parameter)."""
-    idx = np.arange(f.size)
-    i0 = int(np.searchsorted(v, onset))
-    step_m = np.where(idx < i0, pre, post)
-    chi_step = float(np.sum(((f - step_m) / e) ** 2))
-    best_k, best_chi = 1, np.inf
-    for k in range(2, 9):
-        frac = np.clip((v - onset) / (k * 1.0) + 1 / k, 0, 1)        # 0 before onset, 1 after k visits
-        frac[idx < i0] = 0
-        m = pre + frac * (post - pre)
-        chi = float(np.sum(((f - m) / e) ** 2))
-        if chi < best_chi:
-            best_k, best_chi = k, chi
-    n = f.size
-    dbic = (chi_step + 3 * np.log(n)) - (best_chi + 4 * np.log(n))
+def _wls_two_level(f, e, shape):
+    """Weighted least squares for model a + b*shape; returns chi^2 and (a, b)."""
+    w = 1 / e**2
+    X = np.column_stack([np.ones_like(f), shape])
+    A = X.T @ (w[:, None] * X)
+    beta = np.linalg.solve(A, X.T @ (w * f))
+    r = f - X @ beta
+    return float(np.sum(w * r * r)), beta
+
+
+def ramp_vs_step(f, e, v, *_ignored) -> tuple[int, float]:
+    """Joint fit of onset, duration and both levels for a linear ramp (4 params) against the best step (3 params),
+    each minimised by weighted least squares over every onset; returns (best ramp duration in visits,
+    BIC_step - BIC_ramp). Positive => ramp preferred."""
+    n, idx = f.size, np.arange(f.size)
+    best_step = np.inf
+    for i0 in range(3, n - 2):
+        chi, _ = _wls_two_level(f, e, (idx >= i0).astype(float))
+        best_step = min(best_step, chi)
+    best_ramp, best_k = np.inf, 1
+    for i0 in range(3, n - 2):
+        for k in range(2, 9):
+            shape = np.clip((idx - i0 + 1) / k, 0, 1)
+            shape[idx < i0] = 0
+            if shape[-1] < 1:                                    # ramp must complete inside the baseline
+                continue
+            chi, _ = _wls_two_level(f, e, shape)
+            if chi < best_ramp:
+                best_ramp, best_k = chi, k
+    dbic = (best_step + 3 * np.log(n)) - (best_ramp + 4 * np.log(n))
     return best_k, float(dbic)
 
 

@@ -484,7 +484,8 @@ def phases() -> list[dict]:
                         + f". A W1-W2 colour change was measurable for {sm.get('colour_available_on', 0)} clump events"
                         + (f". Unexplained clump events: {', '.join(sm['unexplained_on'])}." if sm["unexplained_on"] else ". No clump event is left without an archival alternative.")
                         + ("" if complete else f" INCOMPLETE: {len(sm.get('missing_details', []))} events without details, "
-                                               f"{len(sm.get('gaia_failed', []))} failed Gaia queries; verdict withheld."))
+                                               f"{len(sm.get('gaia_failed', []))} failed Gaia queries, {len(sm.get('simbad_failed', []))} "
+                                               f"failed SIMBAD queries, exact key match {sm.get('exact_key_match')}; verdict withheld."))
         e9["data"] = sm
     f8 = A / "e8" / "extinction_budget.json"
     e8 = next(p for p in ph if p["id"] == "E8")

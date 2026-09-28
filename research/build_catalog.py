@@ -329,6 +329,9 @@ def rescore() -> None:
             sig = ((d["forced"].get("tier2") or d["forced"].get("tier1") or {}).get("pre_sig"))
             d["baseline_flag"] = "negative" if (sig is not None and sig <= -3) else ""
         d["checklist"], d["machine_verdict"] = checklist(d)
+        alt = alternatives_by_key().get(d["key"])
+        d["alternatives"] = ({"best": alt["best"], "priority_path": alt.get("priority_path", []), "evidence": alt.get("evidence", {})}
+                             if alt else None)
         f.write_text(json.dumps(clean(d)))
         details.append(d)
         cands[d["key"]] = d

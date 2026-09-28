@@ -29,35 +29,57 @@ def sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def expected_universe() -> dict[str, dict]:
+    """Expected light-curve keys from TRACKED inputs only (never from the cache):
+    design.csv (both arms), the E1 class table for the extended 'steady' stratum (on arm), and the
+    tracked list of offset twins data/twins.json (on-arm candidate tids whose 60" twin is measured)."""
+    design = pd.read_csv(E7B / "design.csv")
+    uni = {f"{a}_{int(t)}": {"group": "design", "stratum": st} for a, t, st in zip(design.arm, design.tid, design.stratum)}
+    cls = pd.read_csv(ROOT / "artifacts" / "e1_full" / "classes.csv", index_col="tid")
+    for t in cls.index[cls["on"] == "steady"]:
+        uni.setdefault(f"on_{int(t)}", {"group": "extended", "stratum": "steady"})
+    twins = json.loads((DATA / "twins.json").read_text()) if (DATA / "twins.json").exists() else []
+    for t in twins:
+        uni.setdefault(f"off_{int(t)}", {"group": "twin", "stratum": "twin"})
+    return uni
+
+
 def main() -> None:
     DATA.mkdir(exist_ok=True)
     res = json.loads((E7B / "results.json").read_text())
-    design = pd.read_csv(E7B / "design.csv")
-    in_design = {(a, int(t)): st for a, t, st in zip(design.arm, design.tid, design.stratum)}
+    uni = expected_universe()
     manifest = {"created": str(date.today()), "floor": res["floor"], "threshold_dbic": res["threshold_dbic"],
                 "git_commit": subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, cwd=ROOT).stdout.strip(),
-                "tiers": {}}
+                "universe_size": len(uni), "tiers": {}}
     for tier in (1, 2):
-        rows, keys, empty = [], {}, []
-        for f in sorted(CACHE.glob(f"t{tier}_*.json")):
-            _, arm, tid = f.stem.split("_")
+        rows, status = [], {}
+        expected = uni if tier == 1 else {k: v for k, v in uni.items() if (CACHE / f"t2_{k}.json").exists()}
+        for key, meta in expected.items():
+            f = CACHE / f"t{tier}_{key}.json"
+            if not f.exists():
+                status[key] = {**meta, "status": "missing"}
+                continue
             lc = json.loads(f.read_text())
-            if "visit" not in lc:
-                continue
-            key = f"{arm}_{tid}"
-            if not lc["visit"]:                       # measured, but no usable visit: recorded, not expected as rows
-                empty.append(key)
-                continue
-            keys[key] = {"stratum": in_design.get((arm, int(tid)), lc.get("stratum", "extended")),
-                         "in_design": (arm, int(tid)) in in_design, "n_frames": lc.get("n_frames"), "n_good": lc.get("n_good")}
-            rows += [{"arm": arm, "tid": int(tid), "visit": v, "flux": round(x, 3), "err": round(e, 3)}
-                     for v, x, e in zip(lc["visit"], lc["flux"], lc["err"])]
+            if "error" in lc or "visit" not in lc:
+                status[key] = {**meta, "status": "failed", "error": str(lc.get("error", "no data"))[:80]}
+            elif not lc["visit"]:
+                status[key] = {**meta, "status": "empty", "n_frames": lc.get("n_frames"), "n_good": lc.get("n_good")}
+            else:
+                status[key] = {**meta, "status": "ok", "n_frames": lc.get("n_frames"), "n_good": lc.get("n_good")}
+                arm, tid = key.split("_")
+                rows += [{"arm": arm, "tid": int(tid), "visit": v, "flux": round(x, 3), "err": round(e, 3)}
+                         for v, x, e in zip(lc["visit"], lc["flux"], lc["err"])]
+        missing = sorted(k for k, v in status.items() if v["status"] == "missing")
+        if tier == 1 and missing:
+            raise SystemExit(f"tier 1: {len(missing)} expected light curves are missing from the cache "
+                             f"(e.g. {missing[:5]}); measure them before exporting")
         out = DATA / f"lightcurves_t{tier}.csv.gz"
         with gzip.open(out, "wt", newline="") as g:
             pd.DataFrame(rows).sort_values(["arm", "tid", "visit"]).to_csv(g, index=False)
-        manifest["tiers"][f"t{tier}"] = {"file": out.name, "sha256": sha(out), "n_keys": len(keys), "n_rows": len(rows),
-                                         "keys": keys, "empty_keys": empty}
-        print(f"tier {tier}: {len(keys)} light curves, {len(rows)} rows -> {out.name} ({out.stat().st_size / 1e6:.2f} MB)")
+        counts = pd.Series([v["status"] for v in status.values()]).value_counts().to_dict()
+        manifest["tiers"][f"t{tier}"] = {"file": out.name, "sha256": sha(out), "n_rows": len(rows), "status_counts": counts,
+                                         "keys": status}
+        print(f"tier {tier}: {counts} -> {out.name} ({out.stat().st_size / 1e6:.2f} MB)")
     (DATA / "lightcurves_manifest.json").write_text(json.dumps(manifest, indent=0))
     print("manifest written")
 
